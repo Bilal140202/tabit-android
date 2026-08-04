@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tabit</string>
+    <string name="table_view">Table</string>
+    <string name="today_view">Today</string>
+    <string name="charts_view">Charts</string>
+    <string name="settings_view">Settings</string>
+    <string name="habit_form">New Habit</string>
+    <string name="onboarding">Welcome</string>
+    <string name="no_habits">No habits yet</string>
+    <string name="add_habit">Add Habit</string>
+    <string name="export_csv">Export CSV</string>
+    <string name="export_json">Export JSON</string>
+    <string name="privacy_notice">Tabit is 100%% offline. No data collected.</string>
+    <string name="widget_title">Tabit - Today</string>
+</resources>
