@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,7 +61,7 @@ fun TabitApp() {
                     NavigationBarItem(
                         selected = currentRoute == Screen.Table.route,
                         onClick = { navController.navigate(Screen.Table.route) { popUpTo(Screen.Table.route) { inclusive = true } } },
-                        icon = { Icon(Icons.Default.GridView, "Table") },
+                        icon = { Icon(Icons.Default.Dashboard, "Table") },
                         label = { Text("Table") }
                     )
                     NavigationBarItem(
