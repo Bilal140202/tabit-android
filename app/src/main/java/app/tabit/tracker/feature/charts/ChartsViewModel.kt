@@ -26,11 +26,10 @@ class ChartsViewModel @Inject constructor(
     private val _state = MutableStateFlow(ChartsState())
     val state: StateFlow<ChartsState> = _state.asStateFlow()
 
-    init { loadChartsData() }
-
-    private fun loadChartsData() {
+    init {
+        // Single collection - no stacking
         viewModelScope.launch {
-            habitDao.getAllActiveHabits().collect { habits ->
+            habitDao.getAllActiveHabits().map { habits ->
                 val scoresMap = mutableMapOf<Long, Float>()
                 val streaksMap = mutableMapOf<Long, Int>()
                 val bestStreaksMap = mutableMapOf<Long, Int>()
@@ -43,7 +42,15 @@ class ChartsViewModel @Inject constructor(
                     streaksMap[habit.id] = streak
                     bestStreaksMap[habit.id] = bestStreak
                 }
-                _state.value = ChartsState(habits = habits, scores = scoresMap, streaks = streaksMap, bestStreaks = bestStreaksMap, isLoading = false)
+                ChartsState(
+                    habits = habits,
+                    scores = scoresMap,
+                    streaks = streaksMap,
+                    bestStreaks = bestStreaksMap,
+                    isLoading = false
+                )
+            }.collect { newState ->
+                _state.value = newState
             }
         }
     }

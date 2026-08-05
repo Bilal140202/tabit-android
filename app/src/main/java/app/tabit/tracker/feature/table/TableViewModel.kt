@@ -8,6 +8,7 @@ import app.tabit.tracker.core.db.RecordEntity
 import app.tabit.tracker.core.utils.ScoringEngine
 import app.tabit.tracker.core.utils.StreakCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.YearMonth
@@ -31,41 +32,47 @@ class TableViewModel @Inject constructor(
     val state: StateFlow<TableState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    init { loadTableData() }
+    // Single source of truth for the current month
+    private val _currentMonth = MutableStateFlow(YearMonth.now())
 
-    private fun loadTableData() {
+    init {
+        // Use flatMapLatest so when currentMonth changes, the previous collection is cancelled
+        // This prevents multiple collectors stacking up and causing flickering
+        @OptIn(ExperimentalCoroutinesApi::class)
         viewModelScope.launch {
-            habitDao.getAllActiveHabits().collect { habits ->
-                val recordsMap = mutableMapOf<Long, List<RecordEntity>>()
-                val scoresMap = mutableMapOf<Long, Float>()
-                val streaksMap = mutableMapOf<Long, Int>()
-                val month = _state.value.currentMonth
-                val startDate = month.atDay(1).format(formatter)
-                val endDate = month.atEndOfMonth().format(formatter)
-                for (habit in habits) {
-                    val records = habitDao.getRecordsForHabit(habit.id, startDate, endDate).first()
-                    recordsMap[habit.id] = records
-                    val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
-                    val streak = StreakCalculator.currentStreak(allRecords)
-                    val score = ScoringEngine.calculate(records, habit, streak)
-                    scoresMap[habit.id] = score
-                    streaksMap[habit.id] = streak
+            _currentMonth.flatMapLatest { month ->
+                habitDao.getAllActiveHabits().map { habits ->
+                    val recordsMap = mutableMapOf<Long, List<RecordEntity>>()
+                    val scoresMap = mutableMapOf<Long, Float>()
+                    val streaksMap = mutableMapOf<Long, Int>()
+                    val startDate = month.atDay(1).format(formatter)
+                    val endDate = month.atEndOfMonth().format(formatter)
+                    for (habit in habits) {
+                        val records = habitDao.getRecordsForHabit(habit.id, startDate, endDate).first()
+                        recordsMap[habit.id] = records
+                        val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
+                        val streak = StreakCalculator.currentStreak(allRecords)
+                        val score = ScoringEngine.calculate(records, habit, streak)
+                        scoresMap[habit.id] = score
+                        streaksMap[habit.id] = streak
+                    }
+                    TableState(
+                        habits = habits,
+                        records = recordsMap,
+                        scores = scoresMap,
+                        streaks = streaksMap,
+                        currentMonth = month,
+                        isLoading = false
+                    )
                 }
-                _state.value = TableState(
-                    habits = habits,
-                    records = recordsMap,
-                    scores = scoresMap,
-                    streaks = streaksMap,
-                    currentMonth = month,
-                    isLoading = false
-                )
+            }.collect { newState ->
+                _state.value = newState
             }
         }
     }
 
     fun changeMonth(yearMonth: YearMonth) {
-        _state.value = _state.value.copy(currentMonth = yearMonth, isLoading = true)
-        loadTableData()
+        _currentMonth.value = yearMonth
     }
 
     fun toggleRecord(habitId: Long, date: String, currentDone: Boolean) {

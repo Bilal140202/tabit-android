@@ -24,14 +24,20 @@ class TodayViewModel @Inject constructor(
     val state: StateFlow<TodayState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    init { loadTodayData() }
-
-    private fun loadTodayData() {
+    init {
+        // Single collection with combine to avoid multiple collectors
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
-            habitDao.getAllActiveHabits().collect { habits ->
-                val records = habitDao.getRecordsForDate(today)
-                _state.value = TodayState(habits = habits, todayRecords = records, isLoading = false)
+            habitDao.getAllActiveHabits().combine(
+                habitDao.getRecordsForDateRange(today, today)
+            ) { habits, records ->
+                TodayState(
+                    habits = habits,
+                    todayRecords = records,
+                    isLoading = false
+                )
+            }.collect { newState ->
+                _state.value = newState
             }
         }
     }
