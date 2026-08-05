@@ -14,6 +14,11 @@ import java.time.format.DateTimeFormatter
 object ExportService {
     private val dateFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
+    // Fix C6: Proper CSV escaping
+    private fun csvEscape(value: String): String {
+        return "\"${value.replace("\"", "\"\"")}\""
+    }
+
     suspend fun exportCsv(
         dao: HabitDao,
         outputStream: OutputStream
@@ -33,9 +38,9 @@ object ExportService {
             val score = scores[record.habitId] ?: 0f
             buffer.appendLine(
                 "${record.date}," +
-                "\"${habit?.name ?: "Unknown"}\"," +
+                csvEscape(habit?.name ?: "Unknown") + "," +
                 "${if (record.done) 1 else 0}," +
-                "\"${record.note}\"," +
+                csvEscape(record.note) + "," +
                 "${"%.2f".format(score)}"
             )
         }

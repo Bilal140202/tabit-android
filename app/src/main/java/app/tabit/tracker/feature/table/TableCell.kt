@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -39,10 +40,15 @@ fun TableCell(
 ) {
     val haptic = LocalHapticFeedback.current
 
+    // Fix H1: Use habitColor instead of hardcoded red/green
     val targetCellColor = when {
         isHeader -> Color.Transparent
-        done -> lerpColor(Color(0xFFFF5252), Color(0xFF4CAF50), score.coerceIn(0f, 1f))
-        else -> MaterialTheme.colorScheme.surfaceVariant
+        done -> {
+            // Blend from habitColor (low opacity) to full habitColor based on score
+            val baseAlpha = 0.4f + 0.6f * score.coerceIn(0f, 1f)
+            habitColor.copy(alpha = baseAlpha)
+        }
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
     }
     val cellColor by animateColorAsState(
         targetValue = targetCellColor,
@@ -52,7 +58,7 @@ fun TableCell(
     val targetTextColor = when {
         isHeader -> MaterialTheme.colorScheme.onSurface
         done -> Color.White
-        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     }
     val textColor by animateColorAsState(
         targetValue = targetTextColor,
@@ -85,13 +91,4 @@ fun TableCell(
             maxLines = 1
         )
     }
-}
-
-private fun lerpColor(start: Color, end: Color, fraction: Float): Color {
-    return Color(
-        red = start.red + (end.red - start.red) * fraction,
-        green = start.green + (end.green - start.green) * fraction,
-        blue = start.blue + (end.blue - start.blue) * fraction,
-        alpha = start.alpha + (end.alpha - start.alpha) * fraction
-    )
 }

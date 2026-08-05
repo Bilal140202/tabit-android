@@ -3,6 +3,7 @@ package app.tabit.tracker.feature.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tabit.tracker.core.db.*
+import app.tabit.tracker.core.utils.StreakCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -13,6 +14,7 @@ import javax.inject.Inject
 data class TodayState(
     val habits: List<HabitEntity> = emptyList(),
     val todayRecords: List<RecordEntity> = emptyList(),
+    val streaks: Map<Long, Int> = emptyMap(),
     val isLoading: Boolean = true
 )
 
@@ -25,15 +27,20 @@ class TodayViewModel @Inject constructor(
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     init {
-        // Single collection with combine to avoid multiple collectors
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(today, today)
             ) { habits, records ->
+                val streaksMap = mutableMapOf<Long, Int>()
+                habits.forEach { habit ->
+                    val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
+                    streaksMap[habit.id] = StreakCalculator.currentStreak(allRecords)
+                }
                 TodayState(
                     habits = habits,
                     todayRecords = records,
+                    streaks = streaksMap,
                     isLoading = false
                 )
             }.collect { newState ->

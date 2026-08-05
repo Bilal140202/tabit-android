@@ -1,11 +1,15 @@
 package app.tabit.tracker.feature.today
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,7 +19,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.tabit.tracker.core.db.HabitEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,52 +27,167 @@ fun TodayScreen(
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Today", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold) })
-        }
+            TopAppBar(
+                title = {
+                    Text("Today", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         } else if (state.habits.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No habits yet", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "No habits yet",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text("Add habits from the Table tab", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    Text(
+                        "Add habits from the Table tab",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    )
                 }
             }
         } else {
-            LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 val completedCount = state.todayRecords.count { it.done }
                 val totalCount = state.habits.size
                 val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
+
+                // Progress card
                 item {
-                    Card(Modifier.fillMaxWidth().animateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                    Card(
+                        Modifier.fillMaxWidth().animateContentSize(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    ) {
                         Column(Modifier.padding(16.dp)) {
-                            Text("Daily Progress", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Daily Progress",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
                             Spacer(Modifier.height(8.dp))
-                            LinearProgressIndicator(progress = { progress }, Modifier.fillMaxWidth())
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                            )
                             Spacer(Modifier.height(4.dp))
-                            Text("$completedCount of $totalCount completed", style = MaterialTheme.typography.bodySmall)
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "$completedCount of $totalCount completed",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                if (totalCount > 0) {
+                                    Text(
+                                        "${(progress * 100).toInt()}%",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                     Spacer(Modifier.height(8.dp))
                 }
+
+                // Habit items - Fix H2: Separate toggle from navigation
                 items(state.habits, key = { it.id }) { habit ->
                     val isDone = state.todayRecords.any { it.habitId == habit.id && it.done }
-                    Card(onClick = { onHabitClick(habit.id) }, Modifier.fillMaxWidth().animateContentSize()) {
-                        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = isDone, onCheckedChange = { viewModel.toggleHabit(habit.id) }, colors = CheckboxDefaults.colors(checkedColor = Color(habit.color)))
-                            Spacer(Modifier.width(12.dp))
+                    val streak = state.streaks[habit.id] ?: 0
+
+                    val cardColor by animateColorAsState(
+                        targetValue = if (isDone) Color(habit.color).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
+                        animationSpec = tween(300)
+                    )
+
+                    Card(
+                        onClick = { onHabitClick(habit.id) },
+                        Modifier.fillMaxWidth().animateContentSize(),
+                        colors = CardDefaults.cardColors(containerColor = cardColor)
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Fix H2: Checkbox consumes its own touch, doesn't bubble to Card
+                            Checkbox(
+                                checked = isDone,
+                                onCheckedChange = { viewModel.toggleHabit(habit.id) },
+                                colors = CheckboxDefaults.colors(checkedColor = Color(habit.color))
+                            )
+                            Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(habit.name, style = MaterialTheme.typography.bodyLarge, fontWeight = if (isDone) FontWeight.Bold else FontWeight.Normal, color = if (isDone) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    habit.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isDone) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isDone) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 if (habit.note.isNotEmpty()) {
-                                    Text(habit.note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                                    Text(
+                                        habit.note,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            // Streak badge
+                            if (streak > 0) {
+                                Surface(
+                                    Modifier.padding(end = 4.dp),
+                                    shape = MaterialTheme.shapes.small,
+                                    color = MaterialTheme.colorScheme.tertiaryContainer
+                                ) {
+                                    Row(
+                                        Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.LocalFireDepartment,
+                                            null,
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.tertiary
+                                        )
+                                        Text(
+                                            "$streak",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
                                 }
                             }
                             if (isDone) {
-                                Icon(Icons.Default.CheckCircle, null, tint = Color(habit.color))
+                                Icon(
+                                    Icons.Default.CheckCircle,
+                                    null,
+                                    tint = Color(habit.color),
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }

@@ -1,12 +1,16 @@
 package app.tabit.tracker.feature.table
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,25 +38,36 @@ fun TableScreen(
     val pagerState = rememberPagerState(initialPage = 1200, pageCount = { 2400 })
     var showNoteDialog by remember { mutableStateOf<Triple<Long, String, String>?>(null) }
 
-    // Track the last month we told the ViewModel about, to avoid duplicate calls
-    var lastNotifiedMonth by remember { mutableStateOf(YearMonth.now()) }
+    // Fix H7: Use currentPage outside pager to avoid pre-composition side effects
+    LaunchedEffect(pagerState.currentPage) {
+        val month = YearMonth.now().plusMonths((pagerState.currentPage - 1200).toLong())
+        viewModel.changeMonth(month)
+    }
+
+    val displayMonth = YearMonth.now().plusMonths((pagerState.currentPage - 1200).toLong())
+    val monthLabel = displayMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        "Tabit",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            monthLabel,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 ),
                 actions = {
                     IconButton(onClick = onAddHabit) {
-                        Icon(Icons.Default.Add, "Add")
+                        Icon(Icons.Default.Add, "Add Habit")
                     }
                 }
             )
@@ -95,20 +110,12 @@ fun TableScreen(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    val monthOffset = page - 1200
-                    val displayMonth = YearMonth.now().plusMonths(monthOffset.toLong())
-                    // Only notify ViewModel when the month actually changes
-                    if (displayMonth != lastNotifiedMonth) {
-                        LaunchedEffect(displayMonth) {
-                            lastNotifiedMonth = displayMonth
-                            viewModel.changeMonth(displayMonth)
-                        }
-                    }
+                    val pagerMonth = YearMonth.now().plusMonths((page - 1200).toLong())
                     TableGrid(
                         habits = state.habits,
                         records = state.records,
                         scores = state.scores,
-                        currentMonth = displayMonth,
+                        currentMonth = pagerMonth,
                         onToggle = { habitId, date, done ->
                             viewModel.toggleRecord(habitId, date, done)
                         },
@@ -143,17 +150,25 @@ private fun TableGrid(
 ) {
     val formatter = DateTimeFormatter.ISO_LOCAL_DATE
     val daysInMonth = currentMonth.lengthOfMonth()
+    val scrollState = rememberScrollState()
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
     ) {
+        // Day header row - horizontal scroll for many days
         item {
-            Row(Modifier.fillMaxWidth()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Spacer(Modifier.width(64.dp))
                 for (day in 1..daysInMonth) {
                     Text(
                         text = day.toString(),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.width(36.dp),
                         fontSize = MaterialTheme.typography.labelSmall.fontSize,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -169,6 +184,7 @@ private fun TableGrid(
             Row(
                 Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(scrollState)
                     .animateContentSize()
                     .padding(vertical = 1.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -192,7 +208,7 @@ private fun TableGrid(
                         habitColor = Color(habit.color),
                         onToggle = { onToggle(habit.id, date, record?.done ?: false) },
                         onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.width(36.dp)
                     )
                 }
             }

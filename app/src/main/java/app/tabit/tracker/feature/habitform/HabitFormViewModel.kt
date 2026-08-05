@@ -21,7 +21,8 @@ data class HabitFormState(
     val reminderMinute: Int = -1,
     val note: String = "",
     val isEditing: Boolean = false,
-    val isSaving: Boolean = false
+    val isSaving: Boolean = false,
+    val saveComplete: Boolean = false
 )
 
 @HiltViewModel
@@ -47,6 +48,7 @@ class HabitFormViewModel @Inject constructor(
     fun updateName(name: String) { _state.value = _state.value.copy(name = name) }
     fun updateColor(color: Long) { _state.value = _state.value.copy(color = color) }
     fun updateTarget(target: Int) { _state.value = _state.value.copy(target = target) }
+    fun updateWeight(weight: Float) { _state.value = _state.value.copy(weight = weight) }
     fun updateFrequency(frequency: String) { _state.value = _state.value.copy(frequency = frequency) }
     fun updateNote(note: String) { _state.value = _state.value.copy(note = note) }
 
@@ -55,11 +57,33 @@ class HabitFormViewModel @Inject constructor(
             _state.value = _state.value.copy(isSaving = true)
             val s = _state.value
             if (s.isEditing) {
-                habitDao.updateHabit(HabitEntity(id = habitId, name = s.name, color = s.color, target = s.target, weight = s.weight, frequency = s.frequency, reminderHour = s.reminderHour, reminderMinute = s.reminderMinute, note = s.note))
+                // Fix C2: Load original and copy only changed fields to prevent data loss
+                val existing = habitDao.getHabitById(habitId)
+                if (existing != null) {
+                    habitDao.updateHabit(existing.copy(
+                        name = s.name, color = s.color, target = s.target, weight = s.weight,
+                        frequency = s.frequency, reminderHour = s.reminderHour,
+                        reminderMinute = s.reminderMinute, note = s.note
+                    ))
+                }
             } else {
-                habitDao.insertHabit(HabitEntity(name = s.name, color = s.color, target = s.target, weight = s.weight, frequency = s.frequency, reminderHour = s.reminderHour, reminderMinute = s.reminderMinute, note = s.note))
+                habitDao.insertHabit(HabitEntity(
+                    name = s.name, color = s.color, target = s.target, weight = s.weight,
+                    frequency = s.frequency, reminderHour = s.reminderHour,
+                    reminderMinute = s.reminderMinute, note = s.note
+                ))
             }
-            _state.value = _state.value.copy(isSaving = false)
+            _state.value = _state.value.copy(isSaving = false, saveComplete = true)
+        }
+    }
+
+    fun deleteHabit(habitId: Long) {
+        viewModelScope.launch {
+            val habit = habitDao.getHabitById(habitId)
+            if (habit != null) {
+                habitDao.deleteHabit(habit)
+            }
+            _state.value = _state.value.copy(saveComplete = true)
         }
     }
 }

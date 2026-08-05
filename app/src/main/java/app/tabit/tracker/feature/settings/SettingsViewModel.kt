@@ -16,7 +16,8 @@ import javax.inject.Inject
 
 data class SettingsState(
     val isExporting: Boolean = false,
-    val exportSuccess: Boolean? = null
+    val exportSuccess: Boolean? = null,
+    val lastExportPath: String? = null
 )
 
 @HiltViewModel
@@ -33,7 +34,7 @@ class SettingsViewModel @Inject constructor(
             try {
                 val file = File(context.cacheDir, "tabit_export.csv")
                 file.outputStream().use { ExportService.exportCsv(habitDao, it) }
-                _state.value = _state.value.copy(isExporting = false, exportSuccess = true)
+                _state.value = _state.value.copy(isExporting = false, exportSuccess = true, lastExportPath = file.absolutePath)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isExporting = false, exportSuccess = false)
             }
@@ -46,10 +47,14 @@ class SettingsViewModel @Inject constructor(
             try {
                 val file = File(context.cacheDir, "tabit_export.json")
                 file.outputStream().use { ExportService.exportJson(habitDao, it) }
-                _state.value = _state.value.copy(isExporting = false, exportSuccess = true)
+                _state.value = _state.value.copy(isExporting = false, exportSuccess = true, lastExportPath = file.absolutePath)
             } catch (e: Exception) {
                 _state.value = _state.value.copy(isExporting = false, exportSuccess = false)
             }
         }
+    }
+
+    fun dismissExport() {
+        _state.value = _state.value.copy(exportSuccess = null, lastExportPath = null)
     }
 }

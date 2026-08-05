@@ -1,14 +1,21 @@
 package app.tabit.tracker.navigation
 
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import android.content.Context
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -20,6 +27,8 @@ import app.tabit.tracker.feature.onboarding.OnboardingScreen
 import app.tabit.tracker.feature.settings.SettingsScreen
 import app.tabit.tracker.feature.table.TableScreen
 import app.tabit.tracker.feature.today.TodayScreen
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 sealed class Screen(val route: String) {
     data object Onboarding : Screen("onboarding")
@@ -33,23 +42,52 @@ sealed class Screen(val route: String) {
     }
 }
 
+// DataStore instance
+private val Context.dataStore by preferencesDataStore(name = "tabit_settings")
+
 @Composable
 fun AppNavigation(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var startDestination by remember { mutableStateOf<String?>(null) }
+
+    // Fix C4: Check if onboarding was completed
+    LaunchedEffect(Unit) {
+        val onboarded = context.dataStore.data.map { prefs ->
+            prefs[booleanPreferencesKey("onboarding_completed")] ?: false
+        }.first()
+        startDestination = if (onboarded) Screen.Table.route else Screen.Onboarding.route
+    }
+
+    if (startDestination == null) return
+
     NavHost(
         navController = navController,
-        startDestination = Screen.Table.route,
+        startDestination = startDestination!!,
         modifier = modifier,
         enterTransition = { fadeIn(animationSpec = tween(300)) + slideInHorizontally(animationSpec = tween(300)) { it / 3 } },
         exitTransition = { fadeOut(animationSpec = tween(300)) + slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } }
     ) {
         composable(Screen.Onboarding.route) {
-            OnboardingScreen(onFinish = { navController.navigate(Screen.Table.route) { popUpTo(Screen.Onboarding.route) { inclusive = true } } })
+            OnboardingScreen(
+                onFinish = {
+                    // Mark onboarding completed and navigate
+                    kotlinx.coroutines.runBlocking {
+                        context.dataStore.edit { it[booleanPreferencesKey("onboarding_completed")] = true }
+                    }
+                    navController.navigate(Screen.Table.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                }
+            )
         }
         composable(Screen.Table.route) {
-            TableScreen(onHabitClick = { habitId -> navController.navigate(Screen.HabitEdit.createRoute(habitId)) }, onAddHabit = { navController.navigate(Screen.HabitForm.route) })
+            TableScreen(
+                onHabitClick = { habitId -> navController.navigate(Screen.HabitEdit.createRoute(habitId)) },
+                onAddHabit = { navController.navigate(Screen.HabitForm.route) }
+            )
         }
         composable(Screen.Today.route) {
             TodayScreen(onHabitClick = { habitId -> navController.navigate(Screen.HabitEdit.createRoute(habitId)) })
@@ -59,9 +97,14 @@ fun AppNavigation(
         composable(Screen.HabitForm.route) {
             HabitFormScreen(onSaved = { navController.popBackStack() }, onCancelled = { navController.popBackStack() })
         }
-        composable(Screen.HabitEdit.route, arguments = listOf(navArgument("habitId") { type = NavType.LongType })) { backStackEntry ->
+        composable(
+            Screen.HabitEdit.route,
+            arguments = listOf(navArgument("habitId") { type = NavType.LongType })
+        ) { backStackEntry ->
             val habitId = backStackEntry.arguments?.getLong("habitId") ?: 0L
             HabitFormScreen(habitId = habitId, onSaved = { navController.popBackStack() }, onCancelled = { navController.popBackStack() })
         }
     }
 }
+
+private fun booleanPreferencesKey(name: String) = androidx.datastore.preferences.core.booleanPreferencesKey(name)

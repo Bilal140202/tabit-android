@@ -1,7 +1,6 @@
 package app.tabit.tracker
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,11 +32,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            enableEdgeToEdge()
-        } catch (e: Exception) {
-            Log.w("Tabit", "enableEdgeToEdge failed", e)
-        }
+        enableEdgeToEdge()
         setContent {
             TabitTheme {
                 Surface(
@@ -65,25 +60,42 @@ fun TabitApp() {
                 NavigationBar {
                     NavigationBarItem(
                         selected = currentRoute == Screen.Table.route,
-                        onClick = { navController.navigate(Screen.Table.route) { popUpTo(Screen.Table.route) { inclusive = true } } },
+                        onClick = {
+                            navController.navigate(Screen.Table.route) {
+                                popUpTo(Screen.Table.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        },
                         icon = { Icon(Icons.Default.Dashboard, "Table") },
                         label = { Text("Table") }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Today.route,
-                        onClick = { navController.navigate(Screen.Today.route) },
+                        onClick = {
+                            navController.navigate(Screen.Today.route) {
+                                launchSingleTop = true
+                            }
+                        },
                         icon = { Icon(Icons.Default.CheckCircle, "Today") },
                         label = { Text("Today") }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Charts.route,
-                        onClick = { navController.navigate(Screen.Charts.route) },
+                        onClick = {
+                            navController.navigate(Screen.Charts.route) {
+                                launchSingleTop = true
+                            }
+                        },
                         icon = { Icon(Icons.Default.BarChart, "Charts") },
                         label = { Text("Charts") }
                     )
                     NavigationBarItem(
                         selected = currentRoute == Screen.Settings.route,
-                        onClick = { navController.navigate(Screen.Settings.route) },
+                        onClick = {
+                            navController.navigate(Screen.Settings.route) {
+                                launchSingleTop = true
+                            }
+                        },
                         icon = { Icon(Icons.Default.Settings, "Settings") },
                         label = { Text("Settings") }
                     )
