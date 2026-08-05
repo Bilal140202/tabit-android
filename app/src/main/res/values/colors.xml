@@ -4,4 +4,6 @@
     <color name="tabit_on_primary">#FFFFFFFF</color>
     <color name="tabit_background">#FFF8FAF8</color>
     <color name="tabit_surface">#FFF8FAF8</color>
+    <color name="tabit_primary_dark">#FF5CDBC2</color>
+    <color name="tabit_on_primary_dark">#FF003730</color>
 </resources>

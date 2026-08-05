@@ -3,6 +3,5 @@
     <style name="Theme.Tabit" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/tabit_primary</item>
         <item name="colorOnPrimary">@color/tabit_on_primary</item>
-        <item name="android:statusBarColor">@color/tabit_primary</item>
     </style>
 </resources>
