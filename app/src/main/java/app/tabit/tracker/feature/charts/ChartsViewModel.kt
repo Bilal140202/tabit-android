@@ -8,6 +8,8 @@ import app.tabit.tracker.core.utils.StreakCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class ChartsState(
@@ -25,11 +27,21 @@ class ChartsViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChartsState())
     val state: StateFlow<ChartsState> = _state.asStateFlow()
+    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
     init {
-        // Single collection - no stacking
+        // FIX: Combine habits AND all-records Flows so record changes
+        // (toggles, notes) trigger re-calculation of scores/streaks.
+        // Previously only habits table was observed.
         viewModelScope.launch {
-            habitDao.getAllActiveHabits().map { habits ->
+            val today = LocalDate.now().format(formatter)
+            // Observe a wide date range (all records this year) to keep charts responsive
+            val yearStart = LocalDate.now().withDayOfYear(1).format(formatter)
+            val yearEnd = LocalDate.now().withDayOfYear(1).plusYears(1).minusDays(1).format(formatter)
+
+            habitDao.getAllActiveHabits().combine(
+                habitDao.getRecordsForDateRange(yearStart, yearEnd)
+            ) { habits, recentRecords ->
                 val scoresMap = mutableMapOf<Long, Float>()
                 val streaksMap = mutableMapOf<Long, Int>()
                 val bestStreaksMap = mutableMapOf<Long, Int>()

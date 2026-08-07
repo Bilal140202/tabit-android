@@ -67,10 +67,13 @@ class HabitFormViewModel @Inject constructor(
                     ))
                 }
             } else {
+                // FIX: Calculate proper position so new habits appear at the bottom
+                val maxPos = habitDao.getMaxPosition() ?: -1
                 habitDao.insertHabit(HabitEntity(
                     name = s.name, color = s.color, target = s.target, weight = s.weight,
                     frequency = s.frequency, reminderHour = s.reminderHour,
-                    reminderMinute = s.reminderMinute, note = s.note
+                    reminderMinute = s.reminderMinute, note = s.note,
+                    position = maxPos + 1
                 ))
             }
             _state.value = _state.value.copy(isSaving = false, saveComplete = true)

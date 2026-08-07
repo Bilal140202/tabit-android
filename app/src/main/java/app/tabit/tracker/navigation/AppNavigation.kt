@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +30,7 @@ import app.tabit.tracker.feature.table.TableScreen
 import app.tabit.tracker.feature.today.TodayScreen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 sealed class Screen(val route: String) {
     data object Onboarding : Screen("onboarding")
@@ -71,14 +73,15 @@ fun AppNavigation(
         exitTransition = { fadeOut(animationSpec = tween(300)) + slideOutHorizontally(animationSpec = tween(300)) { -it / 3 } }
     ) {
         composable(Screen.Onboarding.route) {
+            val onboardingScope = rememberCoroutineScope()
             OnboardingScreen(
                 onFinish = {
-                    // Mark onboarding completed and navigate
-                    kotlinx.coroutines.runBlocking {
+                    // FIX: Use coroutine instead of runBlocking to avoid ANR
+                    onboardingScope.launch {
                         context.dataStore.edit { it[booleanPreferencesKey("onboarding_completed")] = true }
-                    }
-                    navController.navigate(Screen.Table.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        navController.navigate(Screen.Table.route) {
+                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        }
                     }
                 }
             )

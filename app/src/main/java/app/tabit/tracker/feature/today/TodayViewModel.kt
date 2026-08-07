@@ -49,16 +49,20 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    // FIX: Race-condition-proof toggle using insertIgnore + direct update.
+    // Previously used .first() on a Flow which could return stale data,
+    // and OnConflictStrategy.REPLACE could silently overwrite existing records
+    // losing done/value fields (the "random numbers on home screen" bug).
     fun toggleHabit(habitId: Long) {
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
-            val existing = habitDao.getRecordsForHabit(habitId, today, today).first()
-            if (existing.isEmpty()) {
-                habitDao.insertRecord(RecordEntity(habitId = habitId, date = today, done = true, value = 1))
-            } else {
-                val record = existing.first()
-                habitDao.updateRecord(record.copy(done = !record.done, value = if (!record.done) 1 else 0))
-            }
+            val existing = state.value.todayRecords.find { it.habitId == habitId }
+            val newDone = existing?.done != true
+            val newValue = if (newDone) 1 else 0
+            // Insert if no record exists (IGNORE if one already does)
+            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = today, done = newDone, value = newValue))
+            // Then directly update by habitId+date — works whether record was just inserted or already existed
+            habitDao.updateRecordDoneByHabitAndDate(habitId, today, newDone, newValue)
         }
     }
 }

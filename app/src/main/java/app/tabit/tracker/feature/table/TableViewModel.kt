@@ -36,19 +36,24 @@ class TableViewModel @Inject constructor(
     private val _currentMonth = MutableStateFlow(YearMonth.now())
 
     init {
-        // Use flatMapLatest so when currentMonth changes, the previous collection is cancelled
-        // This prevents multiple collectors stacking up and causing flickering
+        // FIX: Combine habits AND records Flows so record changes (note, toggle)
+        // trigger a re-emission. Previously only habits table was observed,
+        // so adding a note or toggling a cell never updated the UI.
         @OptIn(ExperimentalCoroutinesApi::class)
         viewModelScope.launch {
             _currentMonth.flatMapLatest { month ->
-                habitDao.getAllActiveHabits().map { habits ->
+                val startDate = month.atDay(1).format(formatter)
+                val endDate = month.atEndOfMonth().format(formatter)
+
+                habitDao.getAllActiveHabits().combine(
+                    habitDao.getRecordsForDateRange(startDate, endDate)
+                ) { habits, monthRecords ->
                     val recordsMap = mutableMapOf<Long, List<RecordEntity>>()
                     val scoresMap = mutableMapOf<Long, Float>()
                     val streaksMap = mutableMapOf<Long, Int>()
-                    val startDate = month.atDay(1).format(formatter)
-                    val endDate = month.atEndOfMonth().format(formatter)
+
                     for (habit in habits) {
-                        val records = habitDao.getRecordsForHabit(habit.id, startDate, endDate).first()
+                        val records = monthRecords.filter { it.habitId == habit.id }
                         recordsMap[habit.id] = records
                         val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
                         val streak = StreakCalculator.currentStreak(allRecords)
@@ -75,26 +80,28 @@ class TableViewModel @Inject constructor(
         _currentMonth.value = yearMonth
     }
 
+    // FIX: Race-condition-proof toggle using insertIgnore + direct update.
+    // Previously used .first() on a Flow which could return stale data,
+    // and OnConflictStrategy.REPLACE could silently overwrite existing records.
     fun toggleRecord(habitId: Long, date: String, currentDone: Boolean) {
         viewModelScope.launch {
-            val existing = habitDao.getRecordsForHabit(habitId, date, date).first()
-            if (existing.isEmpty()) {
-                habitDao.insertRecord(RecordEntity(habitId = habitId, date = date, done = !currentDone, value = if (!currentDone) 1 else 0))
-            } else {
-                val record = existing.first()
-                habitDao.updateRecord(record.copy(done = !currentDone, value = if (!currentDone) 1 else 0))
-            }
+            val newDone = !currentDone
+            val newValue = if (newDone) 1 else 0
+            // Insert if no record exists (IGNORE if one already does)
+            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = date, done = newDone, value = newValue))
+            // Then directly update by habitId+date — works whether record was just inserted or already existed
+            habitDao.updateRecordDoneByHabitAndDate(habitId, date, newDone, newValue)
         }
     }
 
+    // FIX: Race-condition-proof note update using insertIgnore + direct note update.
+    // Preserves existing done/value fields — won't destroy toggle state.
     fun updateRecordNote(habitId: Long, date: String, note: String) {
         viewModelScope.launch {
-            val existing = habitDao.getRecordsForHabit(habitId, date, date).first()
-            if (existing.isEmpty()) {
-                habitDao.insertRecord(RecordEntity(habitId = habitId, date = date, note = note))
-            } else {
-                habitDao.updateRecord(existing.first().copy(note = note))
-            }
+            // Insert a placeholder if no record exists (IGNORE if one already does)
+            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = date, note = note))
+            // Then directly update only the note field, preserving done/value
+            habitDao.updateRecordNoteByHabitAndDate(habitId, date, note)
         }
     }
 }

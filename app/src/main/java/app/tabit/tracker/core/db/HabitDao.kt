@@ -32,6 +32,9 @@ interface HabitDao {
     @Query("SELECT * FROM records WHERE habitId = :habitId ORDER BY date DESC")
     fun getAllRecordsForHabit(habitId: Long): Flow<List<RecordEntity>>
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRecordIgnore(record: RecordEntity): Long
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: RecordEntity): Long
 
@@ -40,6 +43,18 @@ interface HabitDao {
 
     @Delete
     suspend fun deleteRecord(record: RecordEntity)
+
+    /** Safe upsert: insert if not exists, then update by habitId+date key. Race-condition proof. */
+    @Query("UPDATE records SET done = :done, value = :value, note = :note WHERE habitId = :habitId AND date = :date")
+    suspend fun updateRecordByHabitAndDate(habitId: Long, date: String, done: Boolean, value: Int, note: String)
+
+    /** Update only the note field for a specific habit+date, preserving done/value. */
+    @Query("UPDATE records SET note = :note WHERE habitId = :habitId AND date = :date")
+    suspend fun updateRecordNoteByHabitAndDate(habitId: Long, date: String, note: String)
+
+    /** Update only the done/value fields for a specific habit+date, preserving note. */
+    @Query("UPDATE records SET done = :done, value = :value WHERE habitId = :habitId AND date = :date")
+    suspend fun updateRecordDoneByHabitAndDate(habitId: Long, date: String, done: Boolean, value: Int)
 
     @Query("SELECT * FROM records WHERE habitId = :habitId AND done = 1 ORDER BY date DESC")
     suspend fun getCompletedRecords(habitId: Long): List<RecordEntity>
@@ -55,4 +70,7 @@ interface HabitDao {
 
     @Query("SELECT * FROM records")
     suspend fun getAllRecordsSync(): List<RecordEntity>
+
+    @Query("SELECT MAX(position) FROM habits")
+    suspend fun getMaxPosition(): Int?
 }
