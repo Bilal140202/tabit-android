@@ -49,12 +49,11 @@ fun TableScreen(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         IconButton(
-                            onClick = { viewModel.changeMonth(currentMonth.minusMonths(1)) },
-                            contentDescription = "Previous month"
+                            onClick = { viewModel.changeMonth(currentMonth.minusMonths(1)) }
                         ) {
                             Icon(
                                 Icons.Default.ChevronLeft,
-                                contentDescription = null,
+                                contentDescription = "Previous month",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -64,12 +63,11 @@ fun TableScreen(
                             fontWeight = FontWeight.Bold
                         )
                         IconButton(
-                            onClick = { viewModel.changeMonth(currentMonth.plusMonths(1)) },
-                            contentDescription = "Next month"
+                            onClick = { viewModel.changeMonth(currentMonth.plusMonths(1)) }
                         ) {
                             Icon(
                                 Icons.Default.ChevronRight,
-                                contentDescription = null,
+                                contentDescription = "Next month",
                                 tint = MaterialTheme.colorScheme.onSurface
                             )
                         }

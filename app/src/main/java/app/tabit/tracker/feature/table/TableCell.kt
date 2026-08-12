@@ -38,6 +38,7 @@ fun TableCell(
 ) {
     val haptic = LocalHapticFeedback.current
     val safeScore = if (score.isNaN()) 0f else score.coerceIn(0f, 1f)
+    val todayHighlight = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
 
     val targetCellColor = when {
         isHeader -> Color.Transparent
@@ -73,7 +74,7 @@ fun TableCell(
                 if (isToday && !done) {
                     Modifier.drawBehind {
                         drawCircle(
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            color = todayHighlight,
                             radius = size.minDimension / 2f
                         )
                     }
@@ -81,7 +82,7 @@ fun TableCell(
             )
             .combinedClickable(
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onToggle()
                 },
                 onLongClick = {

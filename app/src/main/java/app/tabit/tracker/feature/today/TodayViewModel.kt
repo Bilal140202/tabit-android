@@ -27,18 +27,19 @@ class TodayViewModel @Inject constructor(
     val state: StateFlow<TodayState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
+    // Cached all-records map to avoid N+1 queries on every Flow emission.
+    private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
+
     init {
+        // Seed the cache
+        viewModelScope.launch { refreshCache() }
+
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(today, today)
             ) { habits, records ->
-                // Bulk fetch all records for streak calculation (fixes N+1)
-                val habitIds = habits.map { it.id }
-                val allRecords = if (habitIds.isNotEmpty()) {
-                    habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
-                } else emptyList()
-                val allRecordsByHabit = allRecords.groupBy { it.habitId }
+                val allRecordsByHabit = _allRecordsCache.value
 
                 val streaksMap = mutableMapOf<Long, Int>()
                 habits.forEach { habit ->
@@ -61,9 +62,6 @@ class TodayViewModel @Inject constructor(
     }
 
     // FIX: Race-condition-proof toggle using insertIgnore + direct update.
-    // Previously used .first() on a Flow which could return stale data,
-    // and OnConflictStrategy.REPLACE could silently overwrite existing records
-    // losing done/value fields (the "random numbers on home screen" bug).
     fun toggleHabit(habitId: Long) {
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
@@ -71,6 +69,16 @@ class TodayViewModel @Inject constructor(
             val newDone = existing?.done != true
             val newValue = if (newDone) 1 else 0
             habitDao.toggleRecord(habitId, today, newDone, newValue)
+            refreshCache()
         }
+    }
+
+    private suspend fun refreshCache() {
+        val habits = habitDao.getAllHabitsSync()
+        val habitIds = habits.map { it.id }
+        val all = if (habitIds.isNotEmpty()) {
+            habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+        } else emptyList()
+        _allRecordsCache.value = all.groupBy { it.habitId }
     }
 }

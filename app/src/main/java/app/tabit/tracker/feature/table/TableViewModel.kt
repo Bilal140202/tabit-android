@@ -33,13 +33,17 @@ class TableViewModel @Inject constructor(
     val state: StateFlow<TableState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    // Single source of truth for the current month
     private val _currentMonth = MutableStateFlow(YearMonth.now())
 
+    // Cached all-records map: habitId -> list of records.
+    // Refreshed on init and after every toggle/note mutation.
+    private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
+
     init {
-        // FIX: Combine habits AND records Flows so record changes (note, toggle)
-        // trigger a re-emission. Previously only habits table was observed,
-        // so adding a note or toggling a cell never updated the UI.
+        // Seed the cache on first load
+        viewModelScope.launch { refreshCache() }
+
+        // Main UI state flow
         @OptIn(ExperimentalCoroutinesApi::class)
         viewModelScope.launch {
             _currentMonth.flatMapLatest { month ->
@@ -49,23 +53,17 @@ class TableViewModel @Inject constructor(
                 habitDao.getAllActiveHabits().combine(
                     habitDao.getRecordsForDateRange(startDate, endDate)
                 ) { habits, monthRecords ->
+                    val allRecordsMap = _allRecordsCache.value
+
                     val recordsMap = mutableMapOf<Long, List<RecordEntity>>()
                     val scoresMap = mutableMapOf<Long, Float>()
                     val streaksMap = mutableMapOf<Long, Int>()
 
-                    // Bulk fetch all records for streak/score calculation (fixes N+1)
-                    val habitIds = habits.map { it.id }
-                    val allRecords = if (habitIds.isNotEmpty()) {
-                        habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
-                    } else emptyList()
-                    val allRecordsByHabit = allRecords.groupBy { it.habitId }
-
                     for (habit in habits) {
                         val records = monthRecords.filter { it.habitId == habit.id }
                         recordsMap[habit.id] = records
-                        val habitAllRecords = allRecordsByHabit[habit.id] ?: emptyList()
+                        val habitAllRecords = allRecordsMap[habit.id] ?: emptyList()
                         val streak = StreakCalculator.currentStreak(habitAllRecords)
-                        // Use all-time records for consistent scoring across Table & Charts
                         val score = ScoringEngine.calculate(habitAllRecords, habit, streak)
                         scoresMap[habit.id] = score
                         streaksMap[habit.id] = streak
@@ -92,22 +90,28 @@ class TableViewModel @Inject constructor(
         _currentMonth.value = yearMonth
     }
 
-    // FIX: Race-condition-proof toggle using insertIgnore + direct update.
-    // Previously used .first() on a Flow which could return stale data,
-    // and OnConflictStrategy.REPLACE could silently overwrite existing records.
     fun toggleRecord(habitId: Long, date: String, currentDone: Boolean) {
         viewModelScope.launch {
             val newDone = !currentDone
             val newValue = if (newDone) 1 else 0
             habitDao.toggleRecord(habitId, date, newDone, newValue)
+            refreshCache()
         }
     }
 
-    // FIX: Race-condition-proof note update using insertIgnore + direct note update.
-    // Preserves existing done/value fields — won't destroy toggle state.
     fun updateRecordNote(habitId: Long, date: String, note: String) {
         viewModelScope.launch {
             habitDao.updateRecordNote(habitId, date, note)
+            refreshCache()
         }
+    }
+
+    private suspend fun refreshCache() {
+        val habits = habitDao.getAllHabitsSync()
+        val habitIds = habits.map { it.id }
+        val all = if (habitIds.isNotEmpty()) {
+            habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+        } else emptyList()
+        _allRecordsCache.value = all.groupBy { it.habitId }
     }
 }

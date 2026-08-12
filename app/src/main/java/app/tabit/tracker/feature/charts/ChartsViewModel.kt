@@ -30,28 +30,27 @@ class ChartsViewModel @Inject constructor(
     val state: StateFlow<ChartsState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
+    // Cached all-records map to avoid fetching the entire table on every Flow emission.
+    private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
+
     init {
-        // FIX: Combine habits AND all-records Flows so record changes
-        // (toggles, notes) trigger re-calculation of scores/streaks.
-        // Previously only habits table was observed.
+        // Seed the cache
+        viewModelScope.launch { refreshCache() }
+
+        // FIX: Combine habits AND recent-records Flows so record changes
+        // trigger re-calculation of scores/streaks.
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
-            // Observe a wide date range (all records this year) to keep charts responsive
             val yearStart = LocalDate.now().withDayOfYear(1).format(formatter)
             val yearEnd = LocalDate.now().withDayOfYear(1).plusYears(1).minusDays(1).format(formatter)
 
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(yearStart, yearEnd)
-            ) { habits, recentRecords ->
+            ) { habits, _ ->
                 val scoresMap = mutableMapOf<Long, Float>()
                 val streaksMap = mutableMapOf<Long, Int>()
                 val bestStreaksMap = mutableMapOf<Long, Int>()
-                // Fetch all records once instead of N+1 per habit
-                val habitIds = habits.map { it.id }
-                val allRecords = if (habitIds.isNotEmpty()) {
-                    habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
-                } else emptyList()
-                val recordsByHabit = allRecords.groupBy { it.habitId }
+                val recordsByHabit = _allRecordsCache.value
 
                 habits.forEach { habit ->
                     val habitRecords = recordsByHabit[habit.id] ?: emptyList()
@@ -80,4 +79,13 @@ class ChartsViewModel @Inject constructor(
     }
 
     fun selectHabit(habitId: Long?) { _state.value = _state.value.copy(selectedHabitId = habitId) }
+
+    private suspend fun refreshCache() {
+        val habits = habitDao.getAllHabitsSync()
+        val habitIds = habits.map { it.id }
+        val all = if (habitIds.isNotEmpty()) {
+            habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+        } else emptyList()
+        _allRecordsCache.value = all.groupBy { it.habitId }
+    }
 }

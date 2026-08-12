@@ -2,19 +2,22 @@ package app.tabit.tracker.core.utils
 
 import app.tabit.tracker.core.db.HabitEntity
 import app.tabit.tracker.core.db.RecordEntity
-import java.time.LocalTime
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 object ScoringEngine {
-    private const val MORNING_CUTOFF_HOUR = 9
-    private const val MORNING_WEIGHT_BONUS = 1.1f
+    private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
     private const val STREAK_3_DAY_BONUS = 0.03f
-    private const val STREAK_7_DAY_BONUS = 0.08f
-    private const val STREAK_30_DAY_BONUS = 0.12f
+    private const val STREAK_7_DAY_BONUS = 0.06f
+    private const val STREAK_30_DAY_BONUS = 0.10f
 
     /**
-     * Calculate score for a habit based on its records.
-     * Score is a weighted completion rate with small additive bonuses for streaks and morning completion.
-     * Range: 0.0 to 1.0
+     * Calculate a 0.0-1.0 score for a habit based on all its records.
+     *
+     * The score reflects the overall completion rate:
+     *   unique completed days / total days since creation.
+     * Small additive bonuses for active streaks are added on top.
      */
     fun calculate(
         records: List<RecordEntity>,
@@ -22,23 +25,40 @@ object ScoringEngine {
         currentStreak: Int
     ): Float {
         if (records.isEmpty()) return 0f
-        val target = habit.target.coerceAtLeast(1)
-        val completedCount = records.count { it.done }
-        val completionRate = completedCount.coerceAtMost(target) / target.toFloat()
-        // Apply weight as a modifier to the completion rate (clamped to avoid extremes)
-        val weightedRate = (completionRate * habit.weight.coerceIn(0.5f, 2f)).coerceIn(0f, 1f)
-        // Small additive bonuses for streaks and morning completion
-        val morningBonus = if (isMorningCompletion()) 0.02f else 0f
+
+        // Unique days on which this habit was completed
+        val completedDates = records
+            .asSequence()
+            .filter { it.done }
+            .mapNotNull { runCatching { LocalDate.parse(it.date, formatter) }.getOrNull() }
+            .map { it.toEpochDay() }
+            .distinct()
+            .toList()
+
+        if (completedDates.isEmpty()) return 0f
+
+        // Total days since habit creation (at least 1 to avoid division by zero)
+        val createdDate = runCatching {
+            LocalDate.ofEpochDay(habit.createdAt / 86_400_000)
+        }.getOrNull() ?: LocalDate.now().minusDays(7)
+        val today = LocalDate.now()
+        val totalDays = maxOf(1L, ChronoUnit.DAYS.between(createdDate, today) + 1)
+
+        // Core completion rate
+        val completionRate = (completedDates.size.toFloat() / totalDays)
+            .coerceIn(0f, 1f)
+
+        // Apply habit weight as a modifier (clamped so it never exceeds 1.0 on its own)
+        val weightedRate = (completionRate * habit.weight.coerceIn(0.5f, 2f))
+            .coerceIn(0f, 1f)
+
+        // Additive streak bonus
         val streakBonus = calculateStreakBonus(currentStreak)
-        return (weightedRate + morningBonus + streakBonus).coerceIn(0f, 1f)
+
+        return (weightedRate + streakBonus).coerceIn(0f, 1f)
     }
 
     fun scoreToGradientFraction(score: Float): Float = score.coerceIn(0f, 1f)
-
-    private fun isMorningCompletion(): Boolean {
-        val now = LocalTime.now()
-        return now.hour < MORNING_CUTOFF_HOUR
-    }
 
     private fun calculateStreakBonus(streak: Int): Float = when {
         streak >= 30 -> STREAK_30_DAY_BONUS

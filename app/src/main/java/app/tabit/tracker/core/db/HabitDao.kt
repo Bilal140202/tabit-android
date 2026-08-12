@@ -74,6 +74,9 @@ interface HabitDao {
     @Query("SELECT * FROM records WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC, habitId ASC")
     fun getRecordsForDateRange(startDate: String, endDate: String): Flow<List<RecordEntity>>
 
+    @Query("SELECT * FROM records WHERE date BETWEEN :startDate AND :endDate ORDER BY date ASC, habitId ASC")
+    suspend fun getRecordsForDateRangeSync(startDate: String, endDate: String): List<RecordEntity>
+
     @Query("SELECT * FROM habits")
     suspend fun getAllHabitsSync(): List<HabitEntity>
 
