@@ -1,5 +1,6 @@
 package app.tabit.tracker.feature.today
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tabit.tracker.core.db.*
@@ -32,10 +33,17 @@ class TodayViewModel @Inject constructor(
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(today, today)
             ) { habits, records ->
+                // Bulk fetch all records for streak calculation (fixes N+1)
+                val habitIds = habits.map { it.id }
+                val allRecords = if (habitIds.isNotEmpty()) {
+                    habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+                } else emptyList()
+                val allRecordsByHabit = allRecords.groupBy { it.habitId }
+
                 val streaksMap = mutableMapOf<Long, Int>()
                 habits.forEach { habit ->
-                    val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
-                    streaksMap[habit.id] = StreakCalculator.currentStreak(allRecords)
+                    val habitAllRecords = allRecordsByHabit[habit.id] ?: emptyList()
+                    streaksMap[habit.id] = StreakCalculator.currentStreak(habitAllRecords)
                 }
                 TodayState(
                     habits = habits,
@@ -43,6 +51,9 @@ class TodayViewModel @Inject constructor(
                     streaks = streaksMap,
                     isLoading = false
                 )
+            }.catch { e ->
+                Log.e("TodayViewModel", "Flow error", e)
+                _state.value = _state.value.copy(isLoading = false)
             }.collect { newState ->
                 _state.value = newState
             }
@@ -59,10 +70,7 @@ class TodayViewModel @Inject constructor(
             val existing = state.value.todayRecords.find { it.habitId == habitId }
             val newDone = existing?.done != true
             val newValue = if (newDone) 1 else 0
-            // Insert if no record exists (IGNORE if one already does)
-            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = today, done = newDone, value = newValue))
-            // Then directly update by habitId+date — works whether record was just inserted or already existed
-            habitDao.updateRecordDoneByHabitAndDate(habitId, today, newDone, newValue)
+            habitDao.toggleRecord(habitId, today, newDone, newValue)
         }
     }
 }

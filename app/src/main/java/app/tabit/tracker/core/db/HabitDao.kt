@@ -29,8 +29,17 @@ interface HabitDao {
     @Query("SELECT * FROM records WHERE date = :date")
     suspend fun getRecordsForDate(date: String): List<RecordEntity>
 
-    @Query("SELECT * FROM records WHERE habitId = :habitId ORDER BY date DESC")
-    fun getAllRecordsForHabit(habitId: Long): Flow<List<RecordEntity>>
+    @Transaction
+    suspend fun toggleRecord(habitId: Long, date: String, done: Boolean, value: Int) {
+        insertRecordIgnore(RecordEntity(habitId = habitId, date = date, done = done, value = value))
+        updateRecordDoneByHabitAndDate(habitId, date, done, value)
+    }
+
+    @Transaction
+    suspend fun updateRecordNote(habitId: Long, date: String, note: String) {
+        insertRecordIgnore(RecordEntity(habitId = habitId, date = date, note = note))
+        updateRecordNoteByHabitAndDate(habitId, date, note)
+    }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRecordIgnore(record: RecordEntity): Long

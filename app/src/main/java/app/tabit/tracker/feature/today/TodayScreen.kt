@@ -27,7 +27,6 @@ fun TodayScreen(
     viewModel: TodayViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     Scaffold(
         topBar = {
@@ -37,7 +36,6 @@ fun TodayScreen(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (state.isLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
@@ -111,9 +109,13 @@ fun TodayScreen(
                     Spacer(Modifier.height(8.dp))
                 }
 
+                // Pre-compute done set for O(1) lookups instead of O(n) per item
+                val doneHabitIds = remember(state.todayRecords) {
+                    state.todayRecords.filter { it.done }.map { it.habitId }.toSet()
+                }
                 // Habit items - Fix H2: Separate toggle from navigation
                 items(state.habits, key = { it.id }) { habit ->
-                    val isDone = state.todayRecords.any { it.habitId == habit.id && it.done }
+                    val isDone = habit.id in doneHabitIds
                     val streak = state.streaks[habit.id] ?: 0
 
                     val cardColor by animateColorAsState(
@@ -168,7 +170,7 @@ fun TodayScreen(
                                     ) {
                                         Icon(
                                             Icons.Default.LocalFireDepartment,
-                                            null,
+                                            contentDescription = "Streak: $streak days",
                                             modifier = Modifier.size(14.dp),
                                             tint = MaterialTheme.colorScheme.tertiary
                                         )
@@ -184,7 +186,7 @@ fun TodayScreen(
                             if (isDone) {
                                 Icon(
                                     Icons.Default.CheckCircle,
-                                    null,
+                                    contentDescription = "${habit.name} completed",
                                     tint = Color(habit.color),
                                     modifier = Modifier.size(20.dp)
                                 )

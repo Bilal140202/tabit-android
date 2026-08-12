@@ -1,5 +1,6 @@
 package app.tabit.tracker.feature.table
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tabit.tracker.core.db.HabitDao
@@ -52,12 +53,20 @@ class TableViewModel @Inject constructor(
                     val scoresMap = mutableMapOf<Long, Float>()
                     val streaksMap = mutableMapOf<Long, Int>()
 
+                    // Bulk fetch all records for streak/score calculation (fixes N+1)
+                    val habitIds = habits.map { it.id }
+                    val allRecords = if (habitIds.isNotEmpty()) {
+                        habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+                    } else emptyList()
+                    val allRecordsByHabit = allRecords.groupBy { it.habitId }
+
                     for (habit in habits) {
                         val records = monthRecords.filter { it.habitId == habit.id }
                         recordsMap[habit.id] = records
-                        val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
-                        val streak = StreakCalculator.currentStreak(allRecords)
-                        val score = ScoringEngine.calculate(records, habit, streak)
+                        val habitAllRecords = allRecordsByHabit[habit.id] ?: emptyList()
+                        val streak = StreakCalculator.currentStreak(habitAllRecords)
+                        // Use all-time records for consistent scoring across Table & Charts
+                        val score = ScoringEngine.calculate(habitAllRecords, habit, streak)
                         scoresMap[habit.id] = score
                         streaksMap[habit.id] = streak
                     }
@@ -70,6 +79,9 @@ class TableViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+            }.catch { e ->
+                Log.e("TableViewModel", "Flow error", e)
+                _state.value = _state.value.copy(isLoading = false)
             }.collect { newState ->
                 _state.value = newState
             }
@@ -87,10 +99,7 @@ class TableViewModel @Inject constructor(
         viewModelScope.launch {
             val newDone = !currentDone
             val newValue = if (newDone) 1 else 0
-            // Insert if no record exists (IGNORE if one already does)
-            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = date, done = newDone, value = newValue))
-            // Then directly update by habitId+date — works whether record was just inserted or already existed
-            habitDao.updateRecordDoneByHabitAndDate(habitId, date, newDone, newValue)
+            habitDao.toggleRecord(habitId, date, newDone, newValue)
         }
     }
 
@@ -98,10 +107,7 @@ class TableViewModel @Inject constructor(
     // Preserves existing done/value fields — won't destroy toggle state.
     fun updateRecordNote(habitId: Long, date: String, note: String) {
         viewModelScope.launch {
-            // Insert a placeholder if no record exists (IGNORE if one already does)
-            habitDao.insertRecordIgnore(RecordEntity(habitId = habitId, date = date, note = note))
-            // Then directly update only the note field, preserving done/value
-            habitDao.updateRecordNoteByHabitAndDate(habitId, date, note)
+            habitDao.updateRecordNote(habitId, date, note)
         }
     }
 }

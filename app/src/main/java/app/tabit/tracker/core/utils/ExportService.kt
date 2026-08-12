@@ -37,7 +37,7 @@ object ExportService {
             val habit = habits.find { it.id == record.habitId }
             val score = scores[record.habitId] ?: 0f
             buffer.appendLine(
-                "${record.date}," +
+                csvEscape(record.date) + "," +
                 csvEscape(habit?.name ?: "Unknown") + "," +
                 "${if (record.done) 1 else 0}," +
                 csvEscape(record.note) + "," +
@@ -68,7 +68,12 @@ object ExportService {
             h.put("target", habit.target)
             h.put("weight", habit.weight)
             h.put("frequency", habit.frequency)
+            h.put("customFrequencyDays", habit.customFrequencyDays)
+            h.put("reminderHour", habit.reminderHour)
+            h.put("reminderMinute", habit.reminderMinute)
             h.put("isArchived", habit.isArchived)
+            h.put("position", habit.position)
+            h.put("createdAt", habit.createdAt)
             h.put("note", habit.note)
             habitsArray.put(h)
         }

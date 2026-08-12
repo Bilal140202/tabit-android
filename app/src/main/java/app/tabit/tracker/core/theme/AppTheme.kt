@@ -65,7 +65,9 @@ fun TabitTheme(
         SideEffect {
             try {
                 val window = (view.context as? Activity)?.window ?: return@SideEffect
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.isAppearanceLightStatusBars = !darkTheme
+                insetsController.isAppearanceLightNavigationBars = !darkTheme
             } catch (_: Exception) {
                 // Ignore theme setup errors - not critical for app function
             }

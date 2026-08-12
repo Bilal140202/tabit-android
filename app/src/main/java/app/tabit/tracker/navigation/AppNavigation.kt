@@ -11,9 +11,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
@@ -28,6 +29,9 @@ import app.tabit.tracker.feature.onboarding.OnboardingScreen
 import app.tabit.tracker.feature.settings.SettingsScreen
 import app.tabit.tracker.feature.table.TableScreen
 import app.tabit.tracker.feature.today.TodayScreen
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -55,15 +59,24 @@ fun AppNavigation(
     val context = LocalContext.current
     var startDestination by remember { mutableStateOf<String?>(null) }
 
-    // Fix C4: Check if onboarding was completed
+    // Fix C4: Check if onboarding was completed, with error fallback
     LaunchedEffect(Unit) {
-        val onboarded = context.dataStore.data.map { prefs ->
-            prefs[booleanPreferencesKey("onboarding_completed")] ?: false
-        }.first()
-        startDestination = if (onboarded) Screen.Table.route else Screen.Onboarding.route
+        startDestination = try {
+            val onboarded = context.dataStore.data.map { prefs ->
+                prefs[booleanPreferencesKey("onboarding_completed")] ?: false
+            }.first()
+            if (onboarded) Screen.Table.route else Screen.Onboarding.route
+        } catch (_: Exception) {
+            Screen.Table.route // fallback to main screen on any DataStore error
+        }
     }
 
-    if (startDestination == null) return
+    if (startDestination == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     NavHost(
         navController = navController,
@@ -76,12 +89,11 @@ fun AppNavigation(
             val onboardingScope = rememberCoroutineScope()
             OnboardingScreen(
                 onFinish = {
-                    // FIX: Use coroutine instead of runBlocking to avoid ANR
                     onboardingScope.launch {
                         context.dataStore.edit { it[booleanPreferencesKey("onboarding_completed")] = true }
-                        navController.navigate(Screen.Table.route) {
-                            popUpTo(Screen.Onboarding.route) { inclusive = true }
-                        }
+                    }
+                    navController.navigate(Screen.Table.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
             )

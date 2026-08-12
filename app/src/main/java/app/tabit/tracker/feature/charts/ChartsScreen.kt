@@ -81,8 +81,7 @@ fun ChartsScreen(viewModel: ChartsViewModel = hiltViewModel()) {
                     val streak = state.streaks[habit.id] ?: 0
                     val bestStreak = state.bestStreaks[habit.id] ?: 0
                     Card(
-                        modifier = Modifier.fillMaxWidth().animateContentSize(),
-                        onClick = { viewModel.selectHabit(habit.id) }
+                        modifier = Modifier.fillMaxWidth().animateContentSize()
                     ) {
                         Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -113,7 +112,7 @@ fun ChartsScreen(viewModel: ChartsViewModel = hiltViewModel()) {
                                 )
                             }
                             LinearProgressIndicator(
-                                progress = { score },
+                                progress = { score.coerceIn(0f, 1f) },
                                 Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 color = Color(habit.color),
                                 trackColor = MaterialTheme.colorScheme.surfaceVariant

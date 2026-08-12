@@ -9,7 +9,6 @@
 -keep class javax.inject.** { *; }
 -keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
 -keep @dagger.hilt.android.lifecycle.HiltViewModel class * { *; }
--keep class * extends androidx.lifecycle.ViewModel { *; }
 -dontwarn dagger.hilt.**
 
 # ===== Room =====
@@ -19,19 +18,12 @@
 -dontwarn androidx.room.paging.**
 
 # ===== General Android =====
--keepclassmembers class * {
-    public <init>(...);
-}
 -keep class * extends android.app.Application { *; }
 -keep class * extends android.app.Activity { *; }
--keep class * extends androidx.compose.runtime.Composer { *; }
 
 # ===== Kotlin Coroutines =====
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
--keepclassmembers class kotlinx.coroutines.Continuation {
-    public <init>(...);
-}
 
 # ===== Navigation =====
 -keep class * extends androidx.navigation.Navigator { *; }

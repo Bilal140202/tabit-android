@@ -14,6 +14,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.rememberCoroutineScope
+import app.tabit.tracker.BuildConfig
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,7 +93,9 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
                                         context.startActivity(Intent.createChooser(shareIntent, "Share export"))
-                                    } catch (_: Exception) {}
+                                    } catch (e: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Could not share file") }
+                                    }
                                 },
                                 Modifier.weight(1f)
                             ) { Text("Share") }
@@ -136,7 +140,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        "Version 1.1.0",
+                        "Version ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

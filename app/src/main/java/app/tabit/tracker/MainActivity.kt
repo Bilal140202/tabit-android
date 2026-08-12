@@ -73,7 +73,11 @@ fun TabitApp() {
                         selected = currentRoute == Screen.Today.route,
                         onClick = {
                             navController.navigate(Screen.Today.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         icon = { Icon(Icons.Default.CheckCircle, "Today") },
@@ -83,7 +87,11 @@ fun TabitApp() {
                         selected = currentRoute == Screen.Charts.route,
                         onClick = {
                             navController.navigate(Screen.Charts.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         icon = { Icon(Icons.Default.BarChart, "Charts") },
@@ -93,7 +101,11 @@ fun TabitApp() {
                         selected = currentRoute == Screen.Settings.route,
                         onClick = {
                             navController.navigate(Screen.Settings.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         },
                         icon = { Icon(Icons.Default.Settings, "Settings") },

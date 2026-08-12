@@ -1,5 +1,6 @@
 package app.tabit.tracker.feature.charts
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.tabit.tracker.core.db.*
@@ -45,22 +46,33 @@ class ChartsViewModel @Inject constructor(
                 val scoresMap = mutableMapOf<Long, Float>()
                 val streaksMap = mutableMapOf<Long, Int>()
                 val bestStreaksMap = mutableMapOf<Long, Int>()
+                // Fetch all records once instead of N+1 per habit
+                val habitIds = habits.map { it.id }
+                val allRecords = if (habitIds.isNotEmpty()) {
+                    habitDao.getAllRecordsSync().filter { it.habitId in habitIds }
+                } else emptyList()
+                val recordsByHabit = allRecords.groupBy { it.habitId }
+
                 habits.forEach { habit ->
-                    val allRecords = habitDao.getAllRecordsForHabit(habit.id).first()
-                    val streak = StreakCalculator.currentStreak(allRecords)
-                    val bestStreak = StreakCalculator.bestStreak(allRecords)
-                    val score = ScoringEngine.calculate(allRecords, habit, streak)
+                    val habitRecords = recordsByHabit[habit.id] ?: emptyList()
+                    val streak = StreakCalculator.currentStreak(habitRecords)
+                    val bestStreak = StreakCalculator.bestStreak(habitRecords)
+                    val score = ScoringEngine.calculate(habitRecords, habit, streak)
                     scoresMap[habit.id] = score
                     streaksMap[habit.id] = streak
                     bestStreaksMap[habit.id] = bestStreak
                 }
                 ChartsState(
                     habits = habits,
+                    selectedHabitId = _state.value.selectedHabitId,
                     scores = scoresMap,
                     streaks = streaksMap,
                     bestStreaks = bestStreaksMap,
                     isLoading = false
                 )
+            }.catch { e ->
+                Log.e("ChartsViewModel", "Flow error", e)
+                _state.value = _state.value.copy(isLoading = false)
             }.collect { newState ->
                 _state.value = newState
             }

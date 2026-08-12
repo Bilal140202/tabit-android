@@ -65,11 +65,7 @@ fun TableScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 ),
-                actions = {
-                    IconButton(onClick = onAddHabit) {
-                        Icon(Icons.Default.Add, "Add Habit")
-                    }
-                }
+                // TopAppBar add button removed — FAB is the primary add action
             )
         },
         floatingActionButton = {
@@ -78,7 +74,7 @@ fun TableScreen(
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
-                Icon(Icons.Default.Add, null)
+                Icon(Icons.Default.Add, contentDescription = "Add new habit")
                 Spacer(Modifier.width(8.dp))
                 Text("New Habit")
             }
@@ -169,8 +165,7 @@ private fun TableGrid(
                     Text(
                         text = day.toString(),
                         modifier = Modifier.width(36.dp),
-                        fontSize = MaterialTheme.typography.labelSmall.fontSize,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
@@ -180,6 +175,7 @@ private fun TableGrid(
         items(habits.size, key = { index -> habits[index].id }) { index ->
             val habit = habits[index]
             val habitRecords = records[habit.id] ?: emptyList()
+            val recordMap = remember(habitRecords) { habitRecords.associateBy { it.date } }
             val habitScore = scores[habit.id] ?: 0f
             Row(
                 Modifier
@@ -192,15 +188,14 @@ private fun TableGrid(
                 Text(
                     text = habit.name,
                     modifier = Modifier.width(64.dp),
-                    fontSize = MaterialTheme.typography.bodySmall.fontSize,
-                    fontWeight = FontWeight.Medium,
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 for (day in 1..daysInMonth) {
                     val date = currentMonth.atDay(day).format(formatter)
-                    val record = habitRecords.find { it.date == date }
+                    val record = recordMap[date]
                     TableCell(
                         done = record?.done ?: false,
                         score = habitScore,

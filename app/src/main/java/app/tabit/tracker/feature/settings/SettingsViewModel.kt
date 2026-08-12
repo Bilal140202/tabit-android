@@ -32,7 +32,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isExporting = true)
             try {
-                val file = File(context.cacheDir, "tabit_export.csv")
+                val file = File(context.getExternalFilesDir(null), "tabit_export.csv")
                 file.outputStream().use { ExportService.exportCsv(habitDao, it) }
                 _state.value = _state.value.copy(isExporting = false, exportSuccess = true, lastExportPath = file.absolutePath)
             } catch (e: Exception) {
@@ -45,7 +45,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isExporting = true)
             try {
-                val file = File(context.cacheDir, "tabit_export.json")
+                val file = File(context.getExternalFilesDir(null), "tabit_export.json")
                 file.outputStream().use { ExportService.exportJson(habitDao, it) }
                 _state.value = _state.value.copy(isExporting = false, exportSuccess = true, lastExportPath = file.absolutePath)
             } catch (e: Exception) {

@@ -1,8 +1,6 @@
 package app.tabit.tracker.feature.table
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -17,14 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.animateColorAsState
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -57,7 +53,7 @@ fun TableCell(
 
     val targetTextColor = when {
         isHeader -> MaterialTheme.colorScheme.onSurface
-        done -> Color.White
+        done -> if (habitColor.luminance() > 0.5f) Color.Black else Color.White
         else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     }
     val textColor by animateColorAsState(
@@ -68,11 +64,10 @@ fun TableCell(
     Box(
         modifier = modifier
             .size(36.dp)
-            .animateContentSize(animationSpec = spring(Spring.StiffnessMedium))
             .clip(CircleShape)
             .combinedClickable(
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                     onToggle()
                 },
                 onLongClick = {
