@@ -303,7 +303,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     Text(
                         buildAnnotatedString {
                             withStyle(SpanStyle(textDecoration = TextDecoration.Underline, color = MaterialTheme.colorScheme.primary)) {
-                                push("github.com/Bilal140202/tabit-android")
+                                append("github.com/Bilal140202/tabit-android")
                             }
                         },
                         style = MaterialTheme.typography.bodySmall,
