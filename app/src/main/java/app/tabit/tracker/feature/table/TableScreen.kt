@@ -173,7 +173,7 @@ private fun TableGrid(
             Spacer(Modifier.width(NAME_COL_WIDTH.dp))
             for (day in 1..daysInMonth) {
                 val dayOfWeek = currentMonth.atDay(day).dayOfWeek
-                val label = DAY_LABELS[dayOfWeek.value % 7]
+                val label = DAY_LABELS[dayOfWeek.value - 1]
                 val isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
                 Box(
                     modifier = Modifier.width(CELL_SIZE.dp),
@@ -255,12 +255,11 @@ private fun TableGrid(
                         val record = recordMap[date]
                         val isToday = currentMonth.year == today.year && currentMonth.month == today.month && day == today.dayOfMonth
                         TableCell(
-                            done = record?.done ?: false,
+                            done = record?.done == true,
                             score = habitScore,
-                            dayLabel = day.toString(),
                             habitColor = habitColor,
                             isToday = isToday,
-                            onToggle = { onToggle(habit.id, date, record?.done ?: false) },
+                            onToggle = { onToggle(habit.id, date, record?.done == true) },
                             onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
                             modifier = Modifier.width(CELL_SIZE.dp)
                         )
