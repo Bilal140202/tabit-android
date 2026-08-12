@@ -22,8 +22,9 @@ object ScoringEngine {
         currentStreak: Int
     ): Float {
         if (records.isEmpty()) return 0f
+        val target = habit.target.coerceAtLeast(1)
         val completedCount = records.count { it.done }
-        val completionRate = completedCount.coerceAtMost(habit.target) / habit.target.toFloat()
+        val completionRate = completedCount.coerceAtMost(target) / target.toFloat()
         // Apply weight as a modifier to the completion rate (clamped to avoid extremes)
         val weightedRate = (completionRate * habit.weight.coerceIn(0.5f, 2f)).coerceIn(0f, 1f)
         // Small additive bonuses for streaks and morning completion

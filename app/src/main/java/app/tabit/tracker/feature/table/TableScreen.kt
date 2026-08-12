@@ -1,12 +1,9 @@
 package app.tabit.tracker.feature.table
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -20,12 +17,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tabit.tracker.core.db.HabitEntity
 import app.tabit.tracker.core.db.RecordEntity
+import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.DayOfWeek
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,17 +35,10 @@ fun TableScreen(
     viewModel: TableViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val pagerState = rememberPagerState(initialPage = 1200, pageCount = { 2400 })
     var showNoteDialog by remember { mutableStateOf<Triple<Long, String, String>?>(null) }
 
-    // Fix H7: Use currentPage outside pager to avoid pre-composition side effects
-    LaunchedEffect(pagerState.currentPage) {
-        val month = YearMonth.now().plusMonths((pagerState.currentPage - 1200).toLong())
-        viewModel.changeMonth(month)
-    }
-
-    val displayMonth = YearMonth.now().plusMonths((pagerState.currentPage - 1200).toLong())
-    val monthLabel = displayMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+    val currentMonth = state.currentMonth
+    val monthLabel = currentMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
 
     Scaffold(
         topBar = {
@@ -55,17 +48,36 @@ fun TableScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        IconButton(
+                            onClick = { viewModel.changeMonth(currentMonth.minusMonths(1)) },
+                            contentDescription = "Previous month"
+                        ) {
+                            Icon(
+                                Icons.Default.ChevronLeft,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                         Text(
                             monthLabel,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
+                        IconButton(
+                            onClick = { viewModel.changeMonth(currentMonth.plusMonths(1)) },
+                            contentDescription = "Next month"
+                        ) {
+                            Icon(
+                                Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 ),
-                // TopAppBar add button removed — FAB is the primary add action
             )
         },
         floatingActionButton = {
@@ -102,24 +114,18 @@ fun TableScreen(
                     }
                 }
             } else {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    val pagerMonth = YearMonth.now().plusMonths((page - 1200).toLong())
-                    TableGrid(
-                        habits = state.habits,
-                        records = state.records,
-                        scores = state.scores,
-                        currentMonth = pagerMonth,
-                        onToggle = { habitId, date, done ->
-                            viewModel.toggleRecord(habitId, date, done)
-                        },
-                        onLongPress = { habitId, date, note ->
-                            showNoteDialog = Triple(habitId, date, note)
-                        }
-                    )
-                }
+                TableGrid(
+                    habits = state.habits,
+                    records = state.records,
+                    scores = state.scores,
+                    currentMonth = currentMonth,
+                    onToggle = { habitId, date, done ->
+                        viewModel.toggleRecord(habitId, date, done)
+                    },
+                    onLongPress = { habitId, date, note ->
+                        showNoteDialog = Triple(habitId, date, note)
+                    }
+                )
             }
         }
     }
@@ -135,6 +141,10 @@ fun TableScreen(
     }
 }
 
+private val DAY_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
+private const val NAME_COL_WIDTH = 84
+private const val CELL_SIZE = 38
+
 @Composable
 private fun TableGrid(
     habits: List<HabitEntity>,
@@ -146,65 +156,117 @@ private fun TableGrid(
 ) {
     val formatter = DateTimeFormatter.ISO_LOCAL_DATE
     val daysInMonth = currentMonth.lengthOfMonth()
-    val scrollState = rememberScrollState()
+    val horizontalScrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+    val today = LocalDate.now()
 
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(verticalScrollState)
+            .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 80.dp)
     ) {
-        // Day header row - horizontal scroll for many days
-        item {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(scrollState),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(Modifier.width(64.dp))
-                for (day in 1..daysInMonth) {
+        // Day-of-week header row
+        Row(
+            modifier = Modifier.horizontalScroll(horizontalScrollState),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Empty spacer for habit name column
+            Spacer(Modifier.width(NAME_COL_WIDTH.dp))
+            for (day in 1..daysInMonth) {
+                val dayOfWeek = currentMonth.atDay(day).dayOfWeek
+                val label = DAY_LABELS[dayOfWeek.value % 7]
+                val isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
+                Box(
+                    modifier = Modifier.width(CELL_SIZE.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = day.toString(),
-                        modifier = Modifier.width(36.dp),
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isWeekend)
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Medium,
                         textAlign = TextAlign.Center
                     )
                 }
             }
         }
-        items(habits.size, key = { index -> habits[index].id }) { index ->
-            val habit = habits[index]
-            val habitRecords = records[habit.id] ?: emptyList()
-            val recordMap = remember(habitRecords) { habitRecords.associateBy { it.date } }
-            val habitScore = scores[habit.id] ?: 0f
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(scrollState)
-                    .animateContentSize()
-                    .padding(vertical = 1.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = habit.name,
-                    modifier = Modifier.width(64.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                for (day in 1..daysInMonth) {
-                    val date = currentMonth.atDay(day).format(formatter)
-                    val record = recordMap[date]
-                    TableCell(
-                        done = record?.done ?: false,
-                        score = habitScore,
-                        dayLabel = day.toString(),
-                        habitColor = Color(habit.color),
-                        onToggle = { onToggle(habit.id, date, record?.done ?: false) },
-                        onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
-                        modifier = Modifier.width(36.dp)
+
+        // Day number header row
+        Row(
+            modifier = Modifier.horizontalScroll(horizontalScrollState),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(Modifier.width(NAME_COL_WIDTH.dp))
+            for (day in 1..daysInMonth) {
+                val isToday = currentMonth.year == today.year && currentMonth.month == today.month && day == today.dayOfMonth
+                Box(
+                    modifier = Modifier.width(CELL_SIZE.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = day.toString(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold
+                        ),
+                        color = if (isToday)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
+                }
+            }
+        }
+
+        // Horizontal divider
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 4.dp),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+
+        // Habit rows
+        habits.forEach { habit ->
+            key(habit.id) {
+                val habitRecords = records[habit.id] ?: emptyList()
+                val recordMap = remember(habitRecords) { habitRecords.associateBy { it.date } }
+                val habitScore = scores[habit.id] ?: 0f
+                val habitColor = Color(habit.color)
+
+                Row(
+                    modifier = Modifier
+                        .horizontalScroll(horizontalScrollState)
+                        .padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = habit.name,
+                        modifier = Modifier.width(NAME_COL_WIDTH.dp).padding(end = 4.dp),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    for (day in 1..daysInMonth) {
+                        val date = currentMonth.atDay(day).format(formatter)
+                        val record = recordMap[date]
+                        val isToday = currentMonth.year == today.year && currentMonth.month == today.month && day == today.dayOfMonth
+                        TableCell(
+                            done = record?.done ?: false,
+                            score = habitScore,
+                            dayLabel = day.toString(),
+                            habitColor = habitColor,
+                            isToday = isToday,
+                            onToggle = { onToggle(habit.id, date, record?.done ?: false) },
+                            onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
+                            modifier = Modifier.width(CELL_SIZE.dp)
+                        )
+                    }
                 }
             }
         }
