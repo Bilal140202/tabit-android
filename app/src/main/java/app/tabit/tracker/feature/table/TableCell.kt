@@ -53,7 +53,10 @@ fun TableCell(
 
     val targetTextColor = when {
         isHeader -> MaterialTheme.colorScheme.onSurface
-        done -> if (habitColor.luminance() > 0.5f) Color.Black else Color.White
+        done -> {
+            val lum = (0.299f * habitColor.red + 0.587f * habitColor.green + 0.114f * habitColor.blue)
+            if (lum > 0.5f) Color.Black else Color.White
+        }
         else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
     }
     val textColor by animateColorAsState(
@@ -67,7 +70,7 @@ fun TableCell(
             .clip(CircleShape)
             .combinedClickable(
                 onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onToggle()
                 },
                 onLongClick = {

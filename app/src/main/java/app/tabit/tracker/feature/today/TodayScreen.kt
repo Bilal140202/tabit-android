@@ -58,6 +58,10 @@ fun TodayScreen(
                 }
             }
         } else {
+            // Pre-compute done set for O(1) lookups instead of O(n) per item
+            val doneHabitIds = remember(state.todayRecords) {
+                state.todayRecords.filter { it.done }.map { it.habitId }.toSet()
+            }
             LazyColumn(
                 Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
@@ -109,11 +113,7 @@ fun TodayScreen(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // Pre-compute done set for O(1) lookups instead of O(n) per item
-                val doneHabitIds = remember(state.todayRecords) {
-                    state.todayRecords.filter { it.done }.map { it.habitId }.toSet()
-                }
-                // Habit items - Fix H2: Separate toggle from navigation
+                // Habit items
                 items(state.habits, key = { it.id }) { habit ->
                     val isDone = habit.id in doneHabitIds
                     val streak = state.streaks[habit.id] ?: 0

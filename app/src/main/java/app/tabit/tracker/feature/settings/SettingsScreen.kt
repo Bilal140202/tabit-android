@@ -14,8 +14,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.rememberCoroutineScope
-import app.tabit.tracker.BuildConfig
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -24,7 +22,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -93,8 +90,8 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
                                         context.startActivity(Intent.createChooser(shareIntent, "Share export"))
-                                    } catch (e: Exception) {
-                                        scope.launch { snackbarHostState.showSnackbar("Could not share file") }
+                                    } catch (_: Exception) {
+                                        // Share failed silently
                                     }
                                 },
                                 Modifier.weight(1f)
@@ -140,7 +137,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        "Version ${BuildConfig.VERSION_NAME}",
+                        "Version 1.2.0",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
