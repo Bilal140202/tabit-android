@@ -298,7 +298,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
                     PrivacyHeading("6. Open Source")
                     PrivacyBody(
-                        "Tabit is open source under the MIT License. You can review the full source code at:
+                        "Tabit is open source under the MIT License. You can review the full source code on GitHub."
                     )
                     Text(
                         buildAnnotatedString {
