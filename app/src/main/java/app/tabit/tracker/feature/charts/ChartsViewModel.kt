@@ -43,10 +43,11 @@ class ChartsViewModel @Inject constructor(
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(yearStart, yearEnd)
             ) { habits, _ ->
+                habits
+            }.combine(_allRecordsCache) { habits, recordsByHabit ->
                 val scoresMap = mutableMapOf<Long, Float>()
                 val streaksMap = mutableMapOf<Long, Int>()
                 val bestStreaksMap = mutableMapOf<Long, Int>()
-                val recordsByHabit = _allRecordsCache.value
 
                 habits.forEach { habit ->
                     val habitRecords = recordsByHabit[habit.id] ?: emptyList()

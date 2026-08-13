@@ -37,8 +37,8 @@ class TodayViewModel @Inject constructor(
             habitDao.getAllActiveHabits().combine(
                 habitDao.getRecordsForDateRange(today, today)
             ) { habits, records ->
-                val allRecordsByHabit = _allRecordsCache.value
-
+                habits to records
+            }.combine(_allRecordsCache) { (habits, records), allRecordsByHabit ->
                 val streaksMap = mutableMapOf<Long, Int>()
                 habits.forEach { habit ->
                     val habitAllRecords = allRecordsByHabit[habit.id] ?: emptyList()
@@ -65,7 +65,7 @@ class TodayViewModel @Inject constructor(
     fun toggleHabit(habitId: Long) {
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
-            val existing = state.value.todayRecords.find { it.habitId == habitId }
+            val existing = habitDao.getRecordForHabitAndDate(habitId, today)
             val currentStatus = existing?.status ?: "none"
 
             val (newDone, newValue, newStatus) = when (currentStatus) {

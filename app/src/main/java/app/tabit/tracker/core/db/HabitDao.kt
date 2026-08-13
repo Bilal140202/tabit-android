@@ -110,4 +110,13 @@ interface HabitDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHabits(habits: List<HabitEntity>): List<Long>
+
+    @Transaction
+    suspend fun importAll(habits: List<HabitEntity>, records: List<RecordEntity>) {
+        insertHabits(habits)
+        insertRecords(records)
+    }
+
+    @Query("SELECT * FROM records WHERE habitId = :habitId AND date = :date")
+    suspend fun getRecordForHabitAndDate(habitId: Long, date: String): RecordEntity?
 }

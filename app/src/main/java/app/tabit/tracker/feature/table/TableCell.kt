@@ -95,5 +95,5 @@ fun TableCell(
     }
 }
 
-private const val CELL_SIZE_DP = 38
+private const val CELL_SIZE_DP = 44
 private const val CHECK_ICON_SIZE = 16

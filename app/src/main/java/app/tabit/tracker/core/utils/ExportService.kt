@@ -123,10 +123,14 @@ object ExportService {
             val habitsToInsert = mutableListOf<HabitEntity>()
             for (i in 0 until habitsArray.length()) {
                 val h = habitsArray.getJSONObject(i)
+                val name = h.optString("name", "")
+                if (name.isBlank()) continue
+                val habitType = h.optString("habitType", "positive")
+                val clampedType = if (habitType == "negative") "negative" else "positive"
                 habitsToInsert.add(
                     HabitEntity(
                         id = h.optLong("id", 0),
-                        name = h.optString("name", ""),
+                        name = name,
                         color = h.optLong("color", 0xFF2196F3),
                         target = h.optInt("target", 1),
                         weight = h.optDouble("weight", 1.0).toFloat(),
@@ -139,7 +143,7 @@ object ExportService {
                         createdAt = h.optLong("createdAt", System.currentTimeMillis()),
                         note = h.optString("note", ""),
                         description = h.optString("description", ""),
-                        habitType = h.optString("habitType", "positive"),
+                        habitType = clampedType,
                         dailyGoalUnit = h.optString("dailyGoalUnit", "times"),
                         dailyGoalExtra = h.optInt("dailyGoalExtra", 0)
                     )
@@ -149,21 +153,30 @@ object ExportService {
             val recordsToInsert = mutableListOf<RecordEntity>()
             for (i in 0 until recordsArray.length()) {
                 val r = recordsArray.getJSONObject(i)
+                val habitId = r.optLong("habitId", 0)
+                if (habitId <= 0) continue
+                val dateStr = r.optString("date", "")
+                runCatching { LocalDate.parse(dateStr) }.getOrNull() ?: continue
+                val rawStatus = r.optString("status", "none")
+                val status = when (rawStatus) {
+                    "done" -> "done"
+                    "skip" -> "skip"
+                    else -> "none"
+                }
                 recordsToInsert.add(
                     RecordEntity(
                         id = r.optLong("id", 0),
-                        habitId = r.optLong("habitId", 0),
-                        date = r.optString("date", ""),
+                        habitId = habitId,
+                        date = dateStr,
                         done = r.optBoolean("done", false),
                         value = r.optInt("value", 0),
                         note = r.optString("note", ""),
-                        status = r.optString("status", "none")
+                        status = status
                     )
                 )
             }
 
-            dao.insertHabits(habitsToInsert)
-            dao.insertRecords(recordsToInsert)
+            dao.importAll(habitsToInsert, recordsToInsert)
 
             ImportResult(
                 success = true,

@@ -140,7 +140,7 @@ fun TableScreen(
 
 private val DAY_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
 private const val NAME_COL_WIDTH = 84
-private const val CELL_SIZE = 38
+private const val CELL_SIZE = 44
 
 @Composable
 private fun TableGrid(

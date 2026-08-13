@@ -78,7 +78,15 @@ fun TodayScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val completedCount = state.todayRecords.count { it.status == "done" }
+                val completedCount = state.habits.count { habit ->
+                    val record = recordMap[habit.id]
+                    val status = record?.status ?: "none"
+                    if (habit.habitType == "negative") {
+                        status != "done" && status != "skip"
+                    } else {
+                        status == "done"
+                    }
+                }
                 val totalCount = state.habits.size
                 val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
 
@@ -153,7 +161,7 @@ fun TodayScreen(
                             // 3-state checkbox
                             Box(
                                 Modifier
-                                    .size(40.dp)
+                                    .size(44.dp)
                                     .clip(CircleShape)
                                     .then(
                                         if (isDone) Modifier.background(Color(habit.color))

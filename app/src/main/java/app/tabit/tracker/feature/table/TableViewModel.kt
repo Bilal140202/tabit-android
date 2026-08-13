@@ -49,7 +49,8 @@ class TableViewModel @Inject constructor(
                 habitDao.getAllActiveHabits().combine(
                     habitDao.getRecordsForDateRange(startDate, endDate)
                 ) { habits, monthRecords ->
-                    val allRecordsMap = _allRecordsCache.value
+                    habits to monthRecords
+                }.combine(_allRecordsCache) { (habits, monthRecords), allRecordsMap ->
 
                     val recordsMap = mutableMapOf<Long, List<RecordEntity>>()
                     val scoresMap = mutableMapOf<Long, Float>()
@@ -91,7 +92,9 @@ class TableViewModel @Inject constructor(
      */
     fun toggleRecord(habitId: Long, date: String, currentDone: Boolean, currentStatus: String) {
         viewModelScope.launch {
-            val (newDone, newValue, newStatus) = when (currentStatus) {
+            val existing = habitDao.getRecordForHabitAndDate(habitId, date)
+            val status = existing?.status ?: "none"
+            val (newDone, newValue, newStatus) = when (status) {
                 "none" -> Triple(true, 1, "done")
                 "done" -> Triple(false, 0, "skip")
                 "skip" -> Triple(false, 0, "none")
