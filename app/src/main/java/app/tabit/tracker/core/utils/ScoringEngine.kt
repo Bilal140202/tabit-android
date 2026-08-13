@@ -15,9 +15,10 @@ object ScoringEngine {
     /**
      * Calculate a 0.0-1.0 score for a habit based on all its records.
      *
-     * The score reflects the overall completion rate:
-     *   unique completed days / total days since creation.
-     * Small additive bonuses for active streaks are added on top.
+     * For **positive** habits: completion rate = completed non-skipped days / total non-skipped days.
+     * For **negative** habits ("do less"): rate is INVERTED —
+     *   (non-completed days - completed days) / total non-skipped days, clamped to 0-1.
+     * Records with status == "skip" are excluded from both numerator and denominator.
      */
     fun calculate(
         records: List<RecordEntity>,
@@ -26,27 +27,39 @@ object ScoringEngine {
     ): Float {
         if (records.isEmpty()) return 0f
 
-        // Unique days on which this habit was completed
-        val completedDates = records
+        // Filter out skipped records
+        val relevantRecords = records.filter { it.status != "skip" }
+        if (relevantRecords.isEmpty()) return 0f
+
+        val isNegative = habit.habitType == "negative"
+
+        // Unique non-skipped days
+        val uniqueDates = relevantRecords
+            .asSequence()
+            .mapNotNull { runCatching { LocalDate.parse(it.date, formatter) }.getOrNull() }
+            .distinct()
+            .toSet()
+
+        if (uniqueDates.isEmpty()) return 0f
+
+        // Unique completed non-skipped days
+        val completedDates = relevantRecords
             .asSequence()
             .filter { it.done }
             .mapNotNull { runCatching { LocalDate.parse(it.date, formatter) }.getOrNull() }
-            .map { it.toEpochDay() }
             .distinct()
-            .toList()
+            .toSet()
 
-        if (completedDates.isEmpty()) return 0f
-
-        // Total days since habit creation (at least 1 to avoid division by zero)
-        val createdDate = runCatching {
-            LocalDate.ofEpochDay(habit.createdAt / 86_400_000)
-        }.getOrNull() ?: LocalDate.now().minusDays(7)
-        val today = LocalDate.now()
-        val totalDays = maxOf(1L, ChronoUnit.DAYS.between(createdDate, today) + 1)
+        val totalNonSkippedDays = uniqueDates.size
 
         // Core completion rate
-        val completionRate = (completedDates.size.toFloat() / totalDays)
-            .coerceIn(0f, 1f)
+        val completionRate = if (isNegative) {
+            // For negative habits: (not-done days - done days) / total days
+            val notDoneDays = totalNonSkippedDays - completedDates.size
+            ((notDoneDays - completedDates.size).toFloat() / totalNonSkippedDays).coerceIn(0f, 1f)
+        } else {
+            (completedDates.size.toFloat() / totalNonSkippedDays).coerceIn(0f, 1f)
+        }
 
         // Apply habit weight as a modifier (clamped so it never exceeds 1.0 on its own)
         val weightedRate = (completionRate * habit.weight.coerceIn(0.5f, 2f))

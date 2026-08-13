@@ -35,15 +35,11 @@ class TableViewModel @Inject constructor(
 
     private val _currentMonth = MutableStateFlow(YearMonth.now())
 
-    // Cached all-records map: habitId -> list of records.
-    // Refreshed on init and after every toggle/note mutation.
     private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
 
     init {
-        // Seed the cache on first load
         viewModelScope.launch { refreshCache() }
 
-        // Main UI state flow
         @OptIn(ExperimentalCoroutinesApi::class)
         viewModelScope.launch {
             _currentMonth.flatMapLatest { month ->
@@ -63,7 +59,7 @@ class TableViewModel @Inject constructor(
                         val records = monthRecords.filter { it.habitId == habit.id }
                         recordsMap[habit.id] = records
                         val habitAllRecords = allRecordsMap[habit.id] ?: emptyList()
-                        val streak = StreakCalculator.currentStreak(habitAllRecords)
+                        val streak = StreakCalculator.currentStreak(habitAllRecords, habit.habitType)
                         val score = ScoringEngine.calculate(habitAllRecords, habit, streak)
                         scoresMap[habit.id] = score
                         streaksMap[habit.id] = streak
@@ -90,11 +86,18 @@ class TableViewModel @Inject constructor(
         _currentMonth.value = yearMonth
     }
 
-    fun toggleRecord(habitId: Long, date: String, currentDone: Boolean) {
+    /**
+     * 3-state toggle: none → done → skip → none
+     */
+    fun toggleRecord(habitId: Long, date: String, currentDone: Boolean, currentStatus: String) {
         viewModelScope.launch {
-            val newDone = !currentDone
-            val newValue = if (newDone) 1 else 0
-            habitDao.toggleRecord(habitId, date, newDone, newValue)
+            val (newDone, newValue, newStatus) = when (currentStatus) {
+                "none" -> Triple(true, 1, "done")
+                "done" -> Triple(false, 0, "skip")
+                "skip" -> Triple(false, 0, "none")
+                else -> Triple(true, 1, "done")
+            }
+            habitDao.toggleRecordWithStatus(habitId, date, newDone, newValue, newStatus)
             refreshCache()
         }
     }

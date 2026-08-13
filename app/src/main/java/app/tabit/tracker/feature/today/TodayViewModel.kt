@@ -27,11 +27,9 @@ class TodayViewModel @Inject constructor(
     val state: StateFlow<TodayState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    // Cached all-records map to avoid N+1 queries on every Flow emission.
     private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
 
     init {
-        // Seed the cache
         viewModelScope.launch { refreshCache() }
 
         viewModelScope.launch {
@@ -44,7 +42,7 @@ class TodayViewModel @Inject constructor(
                 val streaksMap = mutableMapOf<Long, Int>()
                 habits.forEach { habit ->
                     val habitAllRecords = allRecordsByHabit[habit.id] ?: emptyList()
-                    streaksMap[habit.id] = StreakCalculator.currentStreak(habitAllRecords)
+                    streaksMap[habit.id] = StreakCalculator.currentStreak(habitAllRecords, habit.habitType)
                 }
                 TodayState(
                     habits = habits,
@@ -61,14 +59,23 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    // FIX: Race-condition-proof toggle using insertIgnore + direct update.
+    /**
+     * 3-state toggle: none → done → skip → none
+     */
     fun toggleHabit(habitId: Long) {
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
             val existing = state.value.todayRecords.find { it.habitId == habitId }
-            val newDone = existing?.done != true
-            val newValue = if (newDone) 1 else 0
-            habitDao.toggleRecord(habitId, today, newDone, newValue)
+            val currentStatus = existing?.status ?: "none"
+
+            val (newDone, newValue, newStatus) = when (currentStatus) {
+                "none" -> Triple(true, 1, "done")
+                "done" -> Triple(false, 0, "skip")
+                "skip" -> Triple(false, 0, "none")
+                else -> Triple(true, 1, "done")
+            }
+
+            habitDao.toggleRecordWithStatus(habitId, today, newDone, newValue, newStatus)
             refreshCache()
         }
     }

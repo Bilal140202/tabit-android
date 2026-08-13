@@ -7,21 +7,33 @@ import java.time.format.DateTimeFormatter
 object StreakCalculator {
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    fun currentStreak(records: List<RecordEntity>): Int {
+    fun currentStreak(records: List<RecordEntity>, habitType: String = "positive"): Int {
         if (records.isEmpty()) return 0
         val today = LocalDate.now()
-        val completedDates = records
-            .filter { it.done }
+
+        val isNegative = habitType == "negative"
+
+        // Filter out skipped records
+        val relevantRecords = records.filter { it.status != "skip" }
+
+        // For positive habits: streak of done days
+        // For negative habits: streak of NOT-done days
+        val qualifyingDates = relevantRecords
+            .filter { if (isNegative) !it.done else it.done }
             .mapNotNull { runCatching { LocalDate.parse(it.date, formatter) }.getOrNull() }
-            .sortedDescending()
-            .distinct()
-        if (completedDates.isEmpty()) return 0
+            .toSet()
+
+        if (qualifyingDates.isEmpty()) return 0
+
+        val sortedDates = qualifyingDates.sortedDescending()
         var streak = 0
         var checkDate = today
-        val latestCompleted = completedDates.first()
-        if (latestCompleted.isBefore(today.minusDays(1))) return 0
-        checkDate = if (latestCompleted == today) today else today.minusDays(1)
-        for (date in completedDates) {
+        val latest = sortedDates.first()
+
+        if (latest.isBefore(today.minusDays(1))) return 0
+        checkDate = if (latest == today) today else today.minusDays(1)
+
+        for (date in sortedDates) {
             if (date == checkDate) {
                 streak++
                 checkDate = checkDate.minusDays(1)
@@ -32,17 +44,22 @@ object StreakCalculator {
         return streak
     }
 
-    fun bestStreak(records: List<RecordEntity>): Int {
+    fun bestStreak(records: List<RecordEntity>, habitType: String = "positive"): Int {
         if (records.isEmpty()) return 0
-        val completedDates = records
-            .filter { it.done }
+
+        val isNegative = habitType == "negative"
+        val relevantRecords = records.filter { it.status != "skip" }
+
+        val qualifyingDates = relevantRecords
+            .filter { if (isNegative) !it.done else it.done }
             .mapNotNull { runCatching { LocalDate.parse(it.date, formatter) }.getOrNull() }
             .sorted()
-        if (completedDates.isEmpty()) return 0
+
+        if (qualifyingDates.isEmpty()) return 0
         var bestStreak = 1
         var currentStreak = 1
-        for (i in 1 until completedDates.size) {
-            if (completedDates[i] == completedDates[i - 1].plusDays(1)) {
+        for (i in 1 until qualifyingDates.size) {
+            if (qualifyingDates[i] == qualifyingDates[i - 1].plusDays(1)) {
                 currentStreak++
                 bestStreak = maxOf(bestStreak, currentStreak)
             } else {
@@ -52,7 +69,7 @@ object StreakCalculator {
         return bestStreak
     }
 
-    fun monthlyStreak(records: List<RecordEntity>, year: Int, month: Int): Int {
+    fun monthlyStreak(records: List<RecordEntity>, year: Int, month: Int, habitType: String = "positive"): Int {
         val monthStart = LocalDate.of(year, month, 1)
         val monthEnd = monthStart.plusMonths(1).minusDays(1)
         val monthRecords = records.filter { record ->
@@ -61,6 +78,6 @@ object StreakCalculator {
                 !date.isBefore(monthStart) && !date.isAfter(monthEnd)
             }.getOrDefault(false)
         }
-        return currentStreak(monthRecords)
+        return currentStreak(monthRecords, habitType)
     }
 }

@@ -54,7 +54,6 @@ fun HabitFormScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(habitId) { if (habitId > 0) viewModel.loadHabit(habitId) }
 
-    // Fix C3: Navigate only after save completes
     LaunchedEffect(state.saveComplete) {
         if (state.saveComplete) onSaved()
     }
@@ -104,6 +103,16 @@ fun HabitFormScreen(
                 }
             )
 
+            // Description
+            OutlinedTextField(
+                value = state.description,
+                onValueChange = { viewModel.updateDescription(it) },
+                label = { Text("Description (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                maxLines = 4
+            )
+
             // Color Picker
             Text("Color", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
             FlowRow(
@@ -136,13 +145,28 @@ fun HabitFormScreen(
                 }
             }
 
-            // Daily Target
+            // Habit Type
+            Text("Habit Type", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.habitType == "positive",
+                    onClick = { viewModel.updateHabitType("positive") },
+                    label = { Text("Do More") }
+                )
+                FilterChip(
+                    selected = state.habitType == "negative",
+                    onClick = { viewModel.updateHabitType("negative") },
+                    label = { Text("Do Less") }
+                )
+            }
+
+            // Daily Goal with unit
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Daily Target", style = MaterialTheme.typography.bodyLarge)
+                Text("Daily Goal", style = MaterialTheme.typography.bodyLarge)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { if (state.target > 1) viewModel.updateTarget(state.target - 1) }) {
                         Icon(Icons.Default.Remove, "Decrease")
@@ -155,6 +179,46 @@ fun HabitFormScreen(
                     )
                     IconButton(onClick = { viewModel.updateTarget(state.target + 1) }) {
                         Icon(Icons.Default.Add, "Increase")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = state.dailyGoalUnit,
+                        onValueChange = { viewModel.updateDailyGoalUnit(it) },
+                        modifier = Modifier.widthIn(min = 80.dp, max = 140.dp),
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+
+            // Stretch Goal (only for positive habits)
+            if (state.habitType == "positive") {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Stretch Goal", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            "Optional higher target",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { if (state.dailyGoalExtra > 0) viewModel.updateDailyGoalExtra(state.dailyGoalExtra - 1) }) {
+                            Icon(Icons.Default.Remove, "Decrease")
+                        }
+                        Text(
+                            "${state.dailyGoalExtra}",
+                            modifier = Modifier.width(32.dp),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(onClick = { viewModel.updateDailyGoalExtra(state.dailyGoalExtra + 1) }) {
+                            Icon(Icons.Default.Add, "Increase")
+                        }
                     }
                 }
             }

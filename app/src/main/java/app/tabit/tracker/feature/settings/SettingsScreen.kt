@@ -1,16 +1,21 @@
 package app.tabit.tracker.feature.settings
 
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
@@ -32,6 +37,22 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     var showAboutDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
 
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream = context.contentResolver.openInputStream(it)
+                if (inputStream != null) {
+                    val file = File(context.cacheDir, "import_temp.json")
+                    file.outputStream().use { out -> inputStream.copyTo(out) }
+                    viewModel.importJson(file)
+                    file.delete()
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -49,6 +70,84 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // ── Appearance ──
+            SectionHeader("Appearance")
+
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("light", "dark", "system").forEach { mode ->
+                            FilterChip(
+                                selected = state.themeMode == mode,
+                                onClick = { viewModel.setThemeMode(mode) },
+                                label = { Text(mode.replaceFirstChar { it.uppercase() }) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Archived Habits ──
+            SectionHeader("Archived Habits")
+
+            if (state.archivedHabits.isEmpty()) {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            "No archived habits",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "${state.archivedHabits.size} archived habit(s)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        state.archivedHabits.forEach { habit ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Surface(
+                                        Modifier.size(12.dp),
+                                        shape = CircleShape,
+                                        color = Color(habit.color)
+                                    ) {}
+                                    Spacer(Modifier.width(8.dp))
+                                    Column {
+                                        Text(habit.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                        if (habit.description.isNotEmpty()) {
+                                            Text(
+                                                habit.description,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                                TextButton(onClick = { viewModel.restoreHabit(habit.id) }) {
+                                    Text("Restore")
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        }
+                    }
+                }
+            }
+
             // ── Data Management ──
             SectionHeader("Data")
 
@@ -73,6 +172,55 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                             Modifier.weight(1f),
                             enabled = !state.isExporting
                         ) { Text("JSON") }
+                    }
+                }
+            }
+
+            // Import section
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("Import Data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Import from a Tabit JSON backup file.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            importLauncher.launch(arrayOf("application/json"))
+                        },
+                        Modifier.fillMaxWidth(),
+                        enabled = !state.isImporting
+                    ) { Text("Import JSON") }
+                }
+            }
+
+            // Import result
+            state.importResult?.let { result ->
+                Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (result.success)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Row(
+                        Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            result.message,
+                            color = if (result.success)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else
+                                MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.dismissImport() }) { Text("OK") }
                     }
                 }
             }
@@ -178,13 +326,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // App identity
-                    InfoRow("Version", "1.2.2")
+                    InfoRow("Version", "1.3.0")
                     InfoRow("Package", "app.tabit.tracker")
 
                     HorizontalDivider()
 
-                    // Description
                     Text(
                         "Tabit is a minimalist, offline-first habit tracker built around a table/calendar view. Track daily habits, visualize streaks, and review progress with charts — all stored privately on your device.",
                         style = MaterialTheme.typography.bodySmall,
@@ -193,25 +339,26 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
                     HorizontalDivider()
 
-                    // Features
                     Text(
                         "Features",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )
                     FeatureBullet("Table View — Monthly calendar grid with per-day completion")
-                    FeatureBullet("Today View — Quick daily check-in for all habits")
+                    FeatureBullet("Today View — Quick daily check-in with 3-state toggle (done/skip/none)")
                     FeatureBullet("Charts — Weekly & monthly completion stats")
                     FeatureBullet("Streak Tracking — Current & best streak per habit")
                     FeatureBullet("Scoring System — Weighted completion rate + streak bonus")
+                    FeatureBullet("Negative Habits — Track 'do less' habits with inverted scoring")
                     FeatureBullet("Notes — Attach notes to any daily record")
+                    FeatureBullet("Theme — Light, Dark, or System theme")
+                    FeatureBullet("Archive — Archive and restore habits")
                     FeatureBullet("Widget — Home screen widget via Glance")
-                    FeatureBullet("Export — CSV & JSON backup (CSV compatible with Loop Habit Tracker)")
+                    FeatureBullet("Export/Import — CSV & JSON backup with import support")
                     FeatureBullet("Haptic Feedback — Tap & long-press feedback")
 
                     HorizontalDivider()
 
-                    // Tech stack
                     Text(
                         "Built With",
                         style = MaterialTheme.typography.labelLarge,
@@ -225,7 +372,6 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 
                     HorizontalDivider()
 
-                    // License
                     Text(
                         "License",
                         style = MaterialTheme.typography.labelLarge,
@@ -276,19 +422,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     PrivacyHeading("3. Data Stored Locally")
                     PrivacyBody("Tabit stores the following data on your device using an encrypted Room database:")
                     PrivacyBullet("Habit names, descriptions, colors, and frequency settings")
-                    PrivacyBullet("Daily completion records (date, done/not done status)")
+                    PrivacyBullet("Daily completion records (date, done/not done/skip status)")
                     PrivacyBullet("Notes attached to individual daily records")
                     PrivacyBullet("App preferences (theme, onboarding state) via DataStore")
                     PrivacyBody(
-                        "This data is stored in the app’s private internal storage and is not accessible to other apps without root access."
+                        "This data is stored in the app's private internal storage and is not accessible to other apps without root access."
                     )
 
                     PrivacyHeading("4. Data Export & Deletion")
                     PrivacyBody(
-                        "You can export your data at any time via CSV or JSON from the Settings screen. The exported file is saved to your device’s shared storage and can be shared or backed up manually."
+                        "You can export your data at any time via CSV or JSON from the Settings screen. The exported file is saved to your device's shared storage and can be shared or backed up manually."
                     )
                     PrivacyBody(
-                        "To delete all data, you can clear the app’s storage from Android Settings > Apps > Tabit > Storage > Clear Data, or uninstall the app entirely."
+                        "To delete all data, you can clear the app's storage from Android Settings > Apps > Tabit > Storage > Clear Data, or uninstall the app entirely."
                     )
 
                     PrivacyHeading("5. Third-Party Services")
@@ -310,7 +456,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                         modifier = Modifier.padding(start = 12.dp)
                     )
 
-                    PrivacyHeading("7. Children’s Privacy")
+                    PrivacyHeading("7. Children's Privacy")
                     PrivacyBody(
                         "Tabit does not knowingly collect information from children. Since no data is collected or transmitted at all, the app is safe for users of any age."
                     )

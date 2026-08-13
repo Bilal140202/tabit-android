@@ -30,15 +30,11 @@ class ChartsViewModel @Inject constructor(
     val state: StateFlow<ChartsState> = _state.asStateFlow()
     private val formatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-    // Cached all-records map to avoid fetching the entire table on every Flow emission.
     private val _allRecordsCache = MutableStateFlow<Map<Long, List<RecordEntity>>>(emptyMap())
 
     init {
-        // Seed the cache
         viewModelScope.launch { refreshCache() }
 
-        // FIX: Combine habits AND recent-records Flows so record changes
-        // trigger re-calculation of scores/streaks.
         viewModelScope.launch {
             val today = LocalDate.now().format(formatter)
             val yearStart = LocalDate.now().withDayOfYear(1).format(formatter)
@@ -54,8 +50,8 @@ class ChartsViewModel @Inject constructor(
 
                 habits.forEach { habit ->
                     val habitRecords = recordsByHabit[habit.id] ?: emptyList()
-                    val streak = StreakCalculator.currentStreak(habitRecords)
-                    val bestStreak = StreakCalculator.bestStreak(habitRecords)
+                    val streak = StreakCalculator.currentStreak(habitRecords, habit.habitType)
+                    val bestStreak = StreakCalculator.bestStreak(habitRecords, habit.habitType)
                     val score = ScoringEngine.calculate(habitRecords, habit, streak)
                     scoresMap[habit.id] = score
                     streaksMap[habit.id] = streak

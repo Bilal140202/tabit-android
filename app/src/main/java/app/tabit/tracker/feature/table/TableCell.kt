@@ -21,7 +21,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Text
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -30,17 +33,17 @@ fun TableCell(
     score: Float,
     isToday: Boolean = false,
     habitColor: Color = MaterialTheme.colorScheme.primary,
+    status: String = "none",
     onToggle: () -> Unit = {},
     onLongPress: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val safeScore = if (score.isNaN()) 0f else score.coerceIn(0f, 1f)
     val todayRingColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
 
-    // Cell background: filled when done, subtle when not
     val cellColor by animateColorAsState(
         targetValue = when {
+            status == "skip" -> Color(0xFFFFC107).copy(alpha = 0.4f)
             done -> habitColor.copy(alpha = 0.85f)
             else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
         },
@@ -55,7 +58,6 @@ fun TableCell(
             .then(
                 if (isToday) {
                     Modifier.drawBehind {
-                        // Draw a ring around today's cell
                         drawCircle(
                             color = todayRingColor,
                             radius = size.minDimension / 2f,
@@ -76,13 +78,18 @@ fun TableCell(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (done) {
-            // Show a small checkmark when completed
-            Icon(
+        when {
+            done -> Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Done",
                 tint = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier.size(CHECK_ICON_SIZE.dp)
+            )
+            status == "skip" -> Text(
+                text = "—",
+                color = Color(0xFFF57F17),
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
             )
         }
     }

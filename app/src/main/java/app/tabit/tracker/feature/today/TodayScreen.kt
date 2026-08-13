@@ -10,10 +10,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.RemoveCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,16 +60,23 @@ fun TodayScreen(
                 }
             }
         } else {
-            // Pre-compute done set for O(1) lookups instead of O(n) per item
-            val doneHabitIds = remember(state.todayRecords) {
-                state.todayRecords.filter { it.done }.map { it.habitId }.toSet()
+            // Build maps for O(1) lookups
+            val recordMap = remember(state.todayRecords) {
+                state.todayRecords.associateBy { it.habitId }
             }
+            val doneHabitIds = remember(state.todayRecords) {
+                state.todayRecords.filter { it.status == "done" }.map { it.habitId }.toSet()
+            }
+            val skippedHabitIds = remember(state.todayRecords) {
+                state.todayRecords.filter { it.status == "skip" }.map { it.habitId }.toSet()
+            }
+
             LazyColumn(
                 Modifier.fillMaxSize().padding(padding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val completedCount = state.todayRecords.count { it.done }
+                val completedCount = state.todayRecords.count { it.status == "done" }
                 val totalCount = state.habits.size
                 val progress = if (totalCount > 0) completedCount.toFloat() / totalCount else 0f
 
@@ -115,11 +124,18 @@ fun TodayScreen(
 
                 // Habit items
                 items(state.habits, key = { it.id }) { habit ->
-                    val isDone = habit.id in doneHabitIds
+                    val record = recordMap[habit.id]
+                    val status = record?.status ?: "none"
+                    val isDone = status == "done"
+                    val isSkipped = status == "skip"
                     val streak = state.streaks[habit.id] ?: 0
 
                     val cardColor by animateColorAsState(
-                        targetValue = if (isDone) Color(habit.color).copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface,
+                        targetValue = when {
+                            isDone -> Color(habit.color).copy(alpha = 0.08f)
+                            isSkipped -> Color(0xFFFFC107).copy(alpha = 0.06f)
+                            else -> MaterialTheme.colorScheme.surface
+                        },
                         animationSpec = tween(300)
                     )
 
@@ -132,12 +148,41 @@ fun TodayScreen(
                             Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Fix H2: Checkbox consumes its own touch, doesn't bubble to Card
-                            Checkbox(
-                                checked = isDone,
-                                onCheckedChange = { viewModel.toggleHabit(habit.id) },
-                                colors = CheckboxDefaults.colors(checkedColor = Color(habit.color))
-                            )
+                            // 3-state checkbox
+                            Box(
+                                Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (isDone) Modifier.background(Color(habit.color))
+                                        else if (isSkipped) Modifier.background(Color(0xFFFFC107).copy(alpha = 0.3f))
+                                        else Modifier
+                                    )
+                                    .clickable { viewModel.toggleHabit(habit.id) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                when {
+                                    isDone -> Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = "Done",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    isSkipped -> Text(
+                                        "—",
+                                        color = Color(0xFFFFC107),
+                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.titleLarge
+                                    )
+                                    else -> Icon(
+                                        Icons.Default.RemoveCircleOutline,
+                                        contentDescription = "Not done",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
+
                             Spacer(Modifier.width(8.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
@@ -145,6 +190,7 @@ fun TodayScreen(
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = if (isDone) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isDone) MaterialTheme.colorScheme.onSurface
+                                    else if (isSkipped) MaterialTheme.colorScheme.onSurfaceVariant
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (habit.note.isNotEmpty()) {
@@ -153,6 +199,14 @@ fun TodayScreen(
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                                         maxLines = 1
+                                    )
+                                }
+                                if (isSkipped) {
+                                    Text(
+                                        "Skipped",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color(0xFFFFC107),
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
@@ -182,14 +236,6 @@ fun TodayScreen(
                                         )
                                     }
                                 }
-                            }
-                            if (isDone) {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = "${habit.name} completed",
-                                    tint = Color(habit.color),
-                                    modifier = Modifier.size(20.dp)
-                                )
                             }
                         }
                     }

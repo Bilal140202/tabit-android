@@ -21,5 +21,9 @@ data class HabitEntity(
     val isArchived: Boolean = false,
     val position: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
-    val note: String = ""
+    val note: String = "",
+    val description: String = "",
+    val habitType: String = "positive",
+    val dailyGoalUnit: String = "times",
+    val dailyGoalExtra: Int = 0
 )

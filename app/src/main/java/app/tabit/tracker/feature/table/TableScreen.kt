@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tabit.tracker.core.db.HabitEntity
@@ -117,8 +116,8 @@ fun TableScreen(
                     records = state.records,
                     scores = state.scores,
                     currentMonth = currentMonth,
-                    onToggle = { habitId, date, done ->
-                        viewModel.toggleRecord(habitId, date, done)
+                    onToggle = { habitId, date, done, status ->
+                        viewModel.toggleRecord(habitId, date, done, status)
                     },
                     onLongPress = { habitId, date, note ->
                         showNoteDialog = Triple(habitId, date, note)
@@ -149,7 +148,7 @@ private fun TableGrid(
     records: Map<Long, List<RecordEntity>>,
     scores: Map<Long, Float>,
     currentMonth: YearMonth,
-    onToggle: (Long, String, Boolean) -> Unit,
+    onToggle: (Long, String, Boolean, String) -> Unit,
     onLongPress: (Long, String, String) -> Unit
 ) {
     val formatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -169,7 +168,6 @@ private fun TableGrid(
             modifier = Modifier.horizontalScroll(horizontalScrollState),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Empty spacer for habit name column
             Spacer(Modifier.width(NAME_COL_WIDTH.dp))
             for (day in 1..daysInMonth) {
                 val dayOfWeek = currentMonth.atDay(day).dayOfWeek
@@ -255,11 +253,15 @@ private fun TableGrid(
                         val record = recordMap[date]
                         val isToday = currentMonth.year == today.year && currentMonth.month == today.month && day == today.dayOfMonth
                         TableCell(
-                            done = record?.done == true,
+                            done = record?.status == "done" || (record?.done == true && record.status == "none"),
                             score = habitScore,
                             habitColor = habitColor,
                             isToday = isToday,
-                            onToggle = { onToggle(habit.id, date, record?.done == true) },
+                            status = record?.status ?: "none",
+                            onToggle = {
+                                val currentStatus = record?.status ?: "none"
+                                onToggle(habit.id, date, record?.done == true, currentStatus)
+                            },
                             onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
                             modifier = Modifier.width(CELL_SIZE.dp)
                         )

@@ -24,9 +24,11 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.tabit.tracker.core.theme.TabitTheme
+import app.tabit.tracker.core.theme.ThemePreferences
 import app.tabit.tracker.navigation.AppNavigation
 import app.tabit.tracker.navigation.Screen
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -34,7 +36,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            TabitTheme {
+            val themeMode by ThemePreferences.getThemeMode(this).collectAsStateWithLifecycle(initialValue = "system")
+            TabitTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

@@ -36,6 +36,12 @@ interface HabitDao {
     }
 
     @Transaction
+    suspend fun toggleRecordWithStatus(habitId: Long, date: String, done: Boolean, value: Int, status: String) {
+        insertRecordIgnore(RecordEntity(habitId = habitId, date = date, done = done, value = value, status = status))
+        updateRecordStatusByHabitAndDate(habitId, date, done, value, status)
+    }
+
+    @Transaction
     suspend fun updateRecordNote(habitId: Long, date: String, note: String) {
         insertRecordIgnore(RecordEntity(habitId = habitId, date = date, note = note))
         updateRecordNoteByHabitAndDate(habitId, date, note)
@@ -46,6 +52,9 @@ interface HabitDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRecord(record: RecordEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRecords(records: List<RecordEntity>): List<Long>
 
     @Update
     suspend fun updateRecord(record: RecordEntity)
@@ -64,6 +73,10 @@ interface HabitDao {
     /** Update only the done/value fields for a specific habit+date, preserving note. */
     @Query("UPDATE records SET done = :done, value = :value WHERE habitId = :habitId AND date = :date")
     suspend fun updateRecordDoneByHabitAndDate(habitId: Long, date: String, done: Boolean, value: Int)
+
+    /** Update done/value/status fields for a specific habit+date, preserving note. */
+    @Query("UPDATE records SET done = :done, value = :value, status = :status WHERE habitId = :habitId AND date = :date")
+    suspend fun updateRecordStatusByHabitAndDate(habitId: Long, date: String, done: Boolean, value: Int, status: String)
 
     @Query("SELECT * FROM records WHERE habitId = :habitId AND done = 1 ORDER BY date DESC")
     suspend fun getCompletedRecords(habitId: Long): List<RecordEntity>
@@ -85,4 +98,16 @@ interface HabitDao {
 
     @Query("SELECT MAX(position) FROM habits")
     suspend fun getMaxPosition(): Int?
+
+    @Query("SELECT * FROM habits WHERE isArchived = 1 ORDER BY position ASC")
+    fun getArchivedHabits(): Flow<List<HabitEntity>>
+
+    @Query("UPDATE habits SET isArchived = 0 WHERE id = :id")
+    suspend fun restoreHabit(id: Long)
+
+    @Query("UPDATE habits SET isArchived = 1 WHERE id = :id")
+    suspend fun archiveHabit(id: Long)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHabits(habits: List<HabitEntity>): List<Long>
 }

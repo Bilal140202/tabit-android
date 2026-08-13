@@ -22,7 +22,11 @@ data class HabitFormState(
     val note: String = "",
     val isEditing: Boolean = false,
     val isSaving: Boolean = false,
-    val saveComplete: Boolean = false
+    val saveComplete: Boolean = false,
+    val description: String = "",
+    val habitType: String = "positive",
+    val dailyGoalUnit: String = "times",
+    val dailyGoalExtra: Int = 0
 )
 
 @HiltViewModel
@@ -39,7 +43,9 @@ class HabitFormViewModel @Inject constructor(
                 _state.value = _state.value.copy(
                     name = it.name, color = it.color, target = it.target, weight = it.weight,
                     frequency = it.frequency, reminderHour = it.reminderHour, reminderMinute = it.reminderMinute,
-                    note = it.note, isEditing = true
+                    note = it.note, isEditing = true,
+                    description = it.description, habitType = it.habitType,
+                    dailyGoalUnit = it.dailyGoalUnit, dailyGoalExtra = it.dailyGoalExtra
                 )
             }
         }
@@ -51,29 +57,40 @@ class HabitFormViewModel @Inject constructor(
     fun updateWeight(weight: Float) { _state.value = _state.value.copy(weight = weight) }
     fun updateFrequency(frequency: String) { _state.value = _state.value.copy(frequency = frequency) }
     fun updateNote(note: String) { _state.value = _state.value.copy(note = note) }
+    fun updateDescription(description: String) { _state.value = _state.value.copy(description = description) }
+    fun updateHabitType(habitType: String) {
+        _state.value = _state.value.copy(
+            habitType = habitType,
+            dailyGoalExtra = if (habitType == "negative") 0 else _state.value.dailyGoalExtra
+        )
+    }
+    fun updateDailyGoalUnit(unit: String) { _state.value = _state.value.copy(dailyGoalUnit = unit) }
+    fun updateDailyGoalExtra(extra: Int) { _state.value = _state.value.copy(dailyGoalExtra = extra) }
 
     fun saveHabit(habitId: Long = 0) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isSaving = true)
             val s = _state.value
             if (s.isEditing) {
-                // Fix C2: Load original and copy only changed fields to prevent data loss
                 val existing = habitDao.getHabitById(habitId)
                 if (existing != null) {
                     habitDao.updateHabit(existing.copy(
                         name = s.name, color = s.color, target = s.target, weight = s.weight,
                         frequency = s.frequency, reminderHour = s.reminderHour,
-                        reminderMinute = s.reminderMinute, note = s.note
+                        reminderMinute = s.reminderMinute, note = s.note,
+                        description = s.description, habitType = s.habitType,
+                        dailyGoalUnit = s.dailyGoalUnit, dailyGoalExtra = s.dailyGoalExtra
                     ))
                 }
             } else {
-                // FIX: Calculate proper position so new habits appear at the bottom
                 val maxPos = habitDao.getMaxPosition() ?: -1
                 habitDao.insertHabit(HabitEntity(
                     name = s.name, color = s.color, target = s.target, weight = s.weight,
                     frequency = s.frequency, reminderHour = s.reminderHour,
                     reminderMinute = s.reminderMinute, note = s.note,
-                    position = maxPos + 1
+                    position = maxPos + 1,
+                    description = s.description, habitType = s.habitType,
+                    dailyGoalUnit = s.dailyGoalUnit, dailyGoalExtra = s.dailyGoalExtra
                 ))
             }
             _state.value = _state.value.copy(isSaving = false, saveComplete = true)

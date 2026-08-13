@@ -25,5 +25,6 @@ data class RecordEntity(
     val date: String,
     val done: Boolean = false,
     val value: Int = 0,
-    val note: String = ""
+    val note: String = "",
+    val status: String = "none"
 )
