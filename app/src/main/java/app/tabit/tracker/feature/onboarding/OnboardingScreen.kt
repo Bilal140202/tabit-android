@@ -1,5 +1,7 @@
 package app.tabit.tracker.feature.onboarding
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -13,10 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.tabit.tracker.core.theme.TabitAlpha
+import app.tabit.tracker.core.theme.TabitMotion
+import app.tabit.tracker.core.theme.TabitSpacing
 import kotlinx.coroutines.launch
 
 @Composable
@@ -29,7 +32,9 @@ fun OnboardingScreen(onFinish: () -> Unit) {
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
-            Modifier.fillMaxSize().padding(32.dp),
+            Modifier
+                .fillMaxSize()
+                .padding(TabitSpacing.xxl),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -42,7 +47,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     )
                     1 -> Tuple4(
                         Icons.Default.LocalFireDepartment, "Smart Scoring",
-                        "Consistency is rewarded.\nMorning completions get 1.2× weight.\nStreaks of 3 and 7 days earn bonuses.",
+                        "Consistency is rewarded.\nMorning completions get 1.2x weight.\nStreaks of 3 and 7 days earn bonuses.",
                         tertiaryColor
                     )
                     else -> Tuple4(
@@ -59,44 +64,59 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     Surface(
                         Modifier.size(96.dp),
                         shape = CircleShape,
-                        color = color.copy(alpha = 0.12f)
+                        color = color.copy(alpha = 0.10f)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 icon,
                                 contentDescription = title,
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(44.dp),
                                 tint = color
                             )
                         }
                     }
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.height(TabitSpacing.xxl))
                     Text(
                         title,
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(TabitSpacing.base))
                     Text(
                         description,
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = TabitAlpha.MUTED_TEXT),
+                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * 1.4f
                     )
                 }
             }
-            Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+            // Page indicators with animated sizing
+            Row(
+                Modifier.padding(TabitSpacing.base),
+                horizontalArrangement = Arrangement.spacedBy(TabitSpacing.sm)
+            ) {
                 repeat(3) { index ->
+                    val isActive = index == pagerState.currentPage
+                    val size by animateDpAsState(
+                        targetValue = if (isActive) 24.dp else 8.dp,
+                        animationSpec = tween(TabitMotion.ROUTINE_MS)
+                    )
                     Surface(
-                        Modifier.size(if (index == pagerState.currentPage) 10.dp else 8.dp),
+                        Modifier.size(width = size, height = 8.dp),
                         shape = CircleShape,
-                        color = if (index == pagerState.currentPage) MaterialTheme.colorScheme.primary
+                        color = if (isActive) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surfaceVariant
                     ) {}
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+            // Navigation buttons
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 if (pagerState.currentPage > 0) {
                     OutlinedButton(
                         onClick = { scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) } }
@@ -116,9 +136,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     }
 }
 
-// Helper since Kotlin doesn't have Tuple4 in stdlib
 private data class Tuple4<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
-
 private operator fun <A, B, C, D> Tuple4<A, B, C, D>.component1(): A = first
 private operator fun <A, B, C, D> Tuple4<A, B, C, D>.component2(): B = second
 private operator fun <A, B, C, D> Tuple4<A, B, C, D>.component3(): C = third

@@ -21,6 +21,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tabit.tracker.core.db.HabitEntity
 import app.tabit.tracker.core.db.RecordEntity
+import app.tabit.tracker.core.theme.TabitAlpha
+import app.tabit.tracker.core.theme.TabitSizing
+import app.tabit.tracker.core.theme.TabitSpacing
+import app.tabit.tracker.ui.components.TabitEmptyState
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -45,7 +49,7 @@ fun TableScreen(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(TabitSpacing.xs)
                     ) {
                         IconButton(
                             onClick = { viewModel.changeMonth(currentMonth.minusMonths(1)) }
@@ -53,13 +57,12 @@ fun TableScreen(
                             Icon(
                                 Icons.Default.ChevronLeft,
                                 contentDescription = "Previous month",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Text(
                             monthLabel,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleLarge
                         )
                         IconButton(
                             onClick = { viewModel.changeMonth(currentMonth.plusMonths(1)) }
@@ -67,24 +70,24 @@ fun TableScreen(
                             Icon(
                                 Icons.Default.ChevronRight,
                                 contentDescription = "Next month",
-                                tint = MaterialTheme.colorScheme.onSurface
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = TabitAlpha.SURFACE_OVERLAY)
                 ),
             )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onAddHabit,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add new habit")
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(TabitSpacing.sm))
                 Text("New Habit")
             }
         }
@@ -95,20 +98,17 @@ fun TableScreen(
                     CircularProgressIndicator()
                 }
             } else if (state.habits.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "No habits yet",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "Tap + to start tracking",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(TabitSpacing.xxl),
+                    contentAlignment = Alignment.Center
+                ) {
+                    TabitEmptyState(
+                        icon = Icons.Default.Add,
+                        headline = "No habits yet",
+                        subtitle = "Tap + to start building your routine"
+                    )
                 }
             } else {
                 TableGrid(
@@ -139,8 +139,6 @@ fun TableScreen(
 }
 
 private val DAY_LABELS = listOf("M", "T", "W", "T", "F", "S", "S")
-private const val NAME_COL_WIDTH = 84
-private const val CELL_SIZE = 44
 
 @Composable
 private fun TableGrid(
@@ -161,30 +159,34 @@ private fun TableGrid(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(verticalScrollState)
-            .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 80.dp)
+            .padding(
+                start = TabitSpacing.sm,
+                end = TabitSpacing.sm,
+                top = TabitSpacing.sm,
+                bottom = 80.dp
+            )
     ) {
         // Day-of-week header row
         Row(
             modifier = Modifier.horizontalScroll(horizontalScrollState),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(NAME_COL_WIDTH.dp))
+            Spacer(Modifier.width(TabitSizing.tableNameColWidth.dp))
             for (day in 1..daysInMonth) {
                 val dayOfWeek = currentMonth.atDay(day).dayOfWeek
                 val label = DAY_LABELS[dayOfWeek.value - 1]
                 val isWeekend = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY
                 Box(
-                    modifier = Modifier.width(CELL_SIZE.dp),
+                    modifier = Modifier.width(TabitSizing.tableCellSize.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isWeekend)
-                            MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Medium,
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = TabitAlpha.MUTED_TEXT),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -196,18 +198,17 @@ private fun TableGrid(
             modifier = Modifier.horizontalScroll(horizontalScrollState),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(NAME_COL_WIDTH.dp))
+            Spacer(Modifier.width(TabitSizing.tableNameColWidth.dp))
             for (day in 1..daysInMonth) {
                 val isToday = currentMonth.year == today.year && currentMonth.month == today.month && day == today.dayOfMonth
                 Box(
-                    modifier = Modifier.width(CELL_SIZE.dp),
+                    modifier = Modifier.width(TabitSizing.tableCellSize.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = day.toString(),
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = if (isToday) FontWeight.ExtraBold else FontWeight.Bold
-                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                         color = if (isToday)
                             MaterialTheme.colorScheme.primary
                         else
@@ -218,10 +219,10 @@ private fun TableGrid(
             }
         }
 
-        // Horizontal divider
+        // Hairline divider
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 4.dp),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            modifier = Modifier.padding(vertical = TabitSpacing.xs),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = TabitAlpha.DIVIDER)
         )
 
         // Habit rows
@@ -240,10 +241,10 @@ private fun TableGrid(
                 ) {
                     Text(
                         text = habit.name,
-                        modifier = Modifier.width(NAME_COL_WIDTH.dp).padding(end = 4.dp),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontWeight = FontWeight.SemiBold
-                        ),
+                        modifier = Modifier
+                            .width(TabitSizing.tableNameColWidth.dp)
+                            .padding(end = TabitSpacing.xs),
+                        style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
@@ -263,7 +264,7 @@ private fun TableGrid(
                                 onToggle(habit.id, date, record?.done == true, currentStatus)
                             },
                             onLongPress = { onLongPress(habit.id, date, record?.note ?: "") },
-                            modifier = Modifier.width(CELL_SIZE.dp)
+                            modifier = Modifier.width(TabitSizing.tableCellSize.dp)
                         )
                     }
                 }
@@ -281,7 +282,7 @@ private fun NoteDialog(
     var note by remember(initialNote) { mutableStateOf(initialNote) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Note") },
+        title = { Text("Note", style = MaterialTheme.typography.titleMedium) },
         text = {
             OutlinedTextField(
                 value = note,

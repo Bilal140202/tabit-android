@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import app.tabit.tracker.core.theme.TabitAlpha
+import app.tabit.tracker.core.theme.TabitSpacing
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -57,7 +59,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Settings", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                    Text("Settings", style = MaterialTheme.typography.headlineMedium)
                 }
             )
         }
@@ -66,18 +68,21 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = TabitSpacing.base)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(TabitSpacing.sm)
         ) {
             // ── Appearance ──
             SectionHeader("Appearance")
 
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(Modifier.padding(TabitSpacing.base)) {
+                    Text("Theme", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(TabitSpacing.sm))
+                    Row(horizontalArrangement = Arrangement.spacedBy(TabitSpacing.sm)) {
                         listOf("light", "dark", "system").forEach { mode ->
                             FilterChip(
                                 selected = state.themeMode == mode,
@@ -93,8 +98,11 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             SectionHeader("Archived Habits")
 
             if (state.archivedHabits.isEmpty()) {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Column(Modifier.padding(TabitSpacing.base)) {
                         Text(
                             "No archived habits",
                             style = MaterialTheme.typography.bodyMedium,
@@ -103,15 +111,17 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     }
                 }
             } else {
-                Card(Modifier.fillMaxWidth()) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium
+                ) {
                     Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Modifier.padding(TabitSpacing.base),
+                        verticalArrangement = Arrangement.spacedBy(TabitSpacing.sm)
                     ) {
                         Text(
                             "${state.archivedHabits.size} archived habit(s)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium
                         )
                         state.archivedHabits.forEach { habit ->
                             Row(
@@ -151,17 +161,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             // ── Data Management ──
             SectionHeader("Data")
 
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Export Data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(Modifier.padding(TabitSpacing.base)) {
+                    Text("Export Data", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(TabitSpacing.xs))
                     Text(
                         "CSV is compatible with Loop Habit Tracker. JSON is a full backup.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Spacer(Modifier.height(TabitSpacing.md))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(TabitSpacing.sm)) {
                         OutlinedButton(
                             onClick = { viewModel.exportCsv() },
                             Modifier.weight(1f),
@@ -177,16 +190,19 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
 
             // Import section
-            Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("Import Data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(4.dp))
+            Card(
+                Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.medium
+            ) {
+                Column(Modifier.padding(TabitSpacing.base)) {
+                    Text("Import Data", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(TabitSpacing.xs))
                     Text(
                         "Import from a Tabit JSON backup file.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(TabitSpacing.md))
                     OutlinedButton(
                         onClick = {
                             importLauncher.launch(arrayOf("application/json"))
@@ -306,7 +322,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 onClick = { showPrivacyDialog = true }
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(TabitSpacing.xxxl))
         }
     }
 
@@ -317,8 +333,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             title = {
                 Text(
                     "Tabit",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineSmall
                 )
             },
             text = {
@@ -397,8 +412,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             title = {
                 Text(
                     "Privacy Policy",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineSmall
                 )
             },
             text = {
@@ -484,11 +498,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
 @Composable
 private fun SectionHeader(title: String) {
     Text(
-        title,
+        title.uppercase(),
         style = MaterialTheme.typography.labelLarge,
-        fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+        modifier = Modifier.padding(top = TabitSpacing.sm, bottom = TabitSpacing.xs)
     )
 }
 
@@ -506,7 +519,7 @@ private fun SettingsClickableCard(
     ) {
         Row(
             Modifier
-                .padding(16.dp)
+                .padding(TabitSpacing.base)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -516,7 +529,7 @@ private fun SettingsClickableCard(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(TabitSpacing.base))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 Text(
@@ -528,7 +541,7 @@ private fun SettingsClickableCard(
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = TabitAlpha.DISABLED),
                 modifier = Modifier.size(20.dp)
             )
         }

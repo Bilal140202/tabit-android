@@ -26,6 +26,10 @@ private val LightColorScheme = lightColorScheme(
     onBackground = md_on_background_light,
     surface = md_surface_light,
     onSurface = md_on_surface_light,
+    surfaceVariant = md_surface_variant_light,
+    onSurfaceVariant = md_on_surface_variant_light,
+    outline = md_outline_light,
+    outlineVariant = md_outline_variant_light,
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -43,6 +47,10 @@ private val DarkColorScheme = darkColorScheme(
     onBackground = md_on_background_dark,
     surface = md_surface_dark,
     onSurface = md_on_surface_dark,
+    surfaceVariant = md_surface_variant_dark,
+    onSurfaceVariant = md_on_surface_variant_dark,
+    outline = md_outline_dark,
+    outlineVariant = md_outline_variant_dark,
 )
 
 @Composable
@@ -80,7 +88,7 @@ fun TabitTheme(
     }
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography(),
+        typography = tabitTypography(),
         content = content
     )
 }

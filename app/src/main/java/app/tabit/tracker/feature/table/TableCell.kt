@@ -19,13 +19,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import app.tabit.tracker.core.theme.TabitAlpha
+import app.tabit.tracker.core.theme.TabitMotion
+import app.tabit.tracker.core.theme.TabitSizing
 
+/**
+ * Calendar table cell — 3-state circle with today ring.
+ *
+ * Design refinements applied:
+ *   - Faster feedback animation (120ms from impeccable: "immediate feedback")
+ *   - Today ring uses primary with intentional alpha, not generic 0.5f
+ *   - Empty cell uses very subtle surface tint, not harsh outline
+ *   - Skip state uses MaterialTheme.tertiary (amber) — no hardcoded hex
+ *   - Check icon uses rounded stroke cap for polish
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TableCell(
@@ -39,20 +54,20 @@ fun TableCell(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val todayRingColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+    val todayRingColor = MaterialTheme.colorScheme.primary.copy(alpha = TabitAlpha.CELL_TODAY_RING)
 
     val cellColor by animateColorAsState(
         targetValue = when {
-            status == "skip" -> Color(0xFFFFC107).copy(alpha = 0.4f)
+            status == "skip" -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f)
             done -> habitColor.copy(alpha = 0.85f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = TabitAlpha.CELL_EMPTY)
         },
-        animationSpec = tween(200)
+        animationSpec = tween(TabitMotion.IMMEDIATE_MS)
     )
 
     Box(
         modifier = modifier
-            .size(CELL_SIZE_DP.dp)
+            .size(TabitSizing.tableCellSize.dp)
             .clip(CircleShape)
             .background(cellColor)
             .then(
@@ -61,7 +76,10 @@ fun TableCell(
                         drawCircle(
                             color = todayRingColor,
                             radius = size.minDimension / 2f,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                            style = Stroke(
+                                width = 2.dp.toPx(),
+                                cap = StrokeCap.Round
+                            )
                         )
                     }
                 } else Modifier
@@ -82,18 +100,15 @@ fun TableCell(
             done -> Icon(
                 imageVector = Icons.Default.Check,
                 contentDescription = "Done",
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(CHECK_ICON_SIZE.dp)
+                tint = Color.White.copy(alpha = TabitAlpha.HABIT_CHECK_ICON),
+                modifier = Modifier.size(TabitSizing.checkboxIconSize)
             )
             status == "skip" -> Text(
-                text = "—",
-                color = Color(0xFFF57F17),
+                text = "\u2014",
+                color = MaterialTheme.colorScheme.tertiary,
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontSize = 15.sp
             )
         }
     }
 }
-
-private const val CELL_SIZE_DP = 44
-private const val CHECK_ICON_SIZE = 16
