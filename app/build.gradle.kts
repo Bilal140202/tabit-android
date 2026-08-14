@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "app.tabit.tracker"
-    compileSdk = 34
+    compileSdk = 35
     defaultConfig {
         applicationId = "app.tabit.tracker"
         minSdk = 26
